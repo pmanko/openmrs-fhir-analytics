@@ -15,22 +15,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FhirSearchUtil {
-	
+
 	private static final Logger log = LoggerFactory.getLogger(FhirSearchUtil.class);
-	
+
 	private FhirStoreUtil fhirStoreUtil;
-	
+
 	FhirSearchUtil(FhirStoreUtil fhirStoreUtil) {
 		this.fhirStoreUtil = fhirStoreUtil;
 	}
-	
+
 	Bundle searchForResource(String resourceType, int count, SummaryEnum summaryMode) {
 		try {
 			IGenericClient client = fhirStoreUtil.getSourceClient();
-			
+
 			Bundle result = client.search().forResource(resourceType).count(count).summaryMode(summaryMode)
 			        .returnBundle(Bundle.class).execute();
-			
+
 			return result;
 		}
 		catch (Exception e) {
@@ -38,14 +38,14 @@ public class FhirSearchUtil {
 		}
 		return null;
 	}
-	
+
 	Bundle searchByPage(String pageId, int count, int first, SummaryEnum summaryMode) {
 		try {
 			IGenericClient client = fhirStoreUtil.getSourceClient();
-			
+
 			Bundle result = client.search().byUrl(client.getServerBase() + "?" + pageId + "&_getpagesoffset=" + first)
 			        .count(count).summaryMode(summaryMode).returnBundle(Bundle.class).execute();
-			
+
 			return result;
 		}
 		catch (Exception e) {
@@ -53,22 +53,22 @@ public class FhirSearchUtil {
 		}
 		return null;
 	}
-	
+
 	public FhirStoreUtil getFhirStoreUtil() {
 		return this.fhirStoreUtil;
 	}
-	
+
 	public String findBaseSearchUrl(Bundle searchBundle) {
 		String searchLink = null;
-		
+
 		if (searchBundle.getLink(Bundle.LINK_NEXT) != null) {
 			searchLink = searchBundle.getLink(Bundle.LINK_NEXT).getUrl();
 		}
-		
+
 		if (searchLink == null) {
 			throw new IllegalArgumentException(String.format("No proper link information in bundle %s", searchBundle));
 		}
-		
+
 		try {
 			URI searchUri = new URI(searchLink);
 			NameValuePair pagesParam = null;
@@ -81,6 +81,8 @@ public class FhirSearchUtil {
 				throw new IllegalArgumentException(
 				        String.format("No _getpages parameter found in search link %s", searchLink));
 			}
+      return pagesParam.toString();
+    } catch (URISyntaxException e) {
 			return new URI(searchUri.getScheme(), searchUri.getAuthority(), searchUri.getPath(), pagesParam.toString(), // Only keep the _getpages parameter.
 			        searchUri.getFragment()).toString();
 		}
@@ -89,12 +91,12 @@ public class FhirSearchUtil {
 			        String.format("Malformed link information with error %s in bundle %s", e.getMessage(), searchBundle));
 		}
 	}
-	
+
 	public void uploadBundleToCloud(Bundle bundle) {
 		for (BundleEntryComponent entry : bundle.getEntry()) {
 			Resource resource = entry.getResource();
 			fhirStoreUtil.uploadResourceToCloud(resource.getIdElement().getIdPart(), resource);
 		}
 	}
-	
+
 }

@@ -24,31 +24,30 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  * A standalone app that listens on Atom Feeds of an OpenMRS server and translates the changes in
  * OpenMRS to FHIR resources that are exported to GCP FHIR store.
  */
-public class FhirStreaming {
-	
-	private static final Logger log = LoggerFactory.getLogger(FhirEventWorker.class);
-	
-	// TODO: provide option for GCP and HAPI, using either arguements of env vars.
-	private static String sourceUrl = System.getenv("SOURCE_URL");
-	
-	private static String sourcePw = System.getenv("SOURCE_PW");
-	
-	private static String sourceUn = System.getenv("SOURCE_USERNAME");
-	
-	private static String targetFhirStoreUrl = System.getenv("SINK_URL");
-	
-	public static void main(String[] args) throws InterruptedException, URISyntaxException {
-		if (args.length == 4) {
-			sourceUrl = args[0];
-			sourceUn = args[1].split("/")[0];
-			sourcePw = args[1].split("/")[1];
-			targetFhirStoreUrl = args[3];
-		} else if (args.length > 0) {
-			log.error("You should pass the following arguements:");
-			log.error("1) source url: the base url of the OpenMRS server (ending in 'openmrs').");
-			log.error("2) source auth user / password.");
-			log.error("3) destination type: `hapi` or `gcp`");
-			log.error("4) target FHIR Store url OR a GCP FHIR store in the following format:\n"
+public class FhirStreaming
+{
+    private static final Logger log = LoggerFactory.getLogger(FhirEventWorker.class);
+
+    // TODO: provide option for GCP and HAPI, using either arguements of env vars.
+    private static String sourceUrl = System.getenv("SOURCE_URL");
+    private static String sourcePw = System.getenv("SOURCE_PW");
+    private static String sourceUn = System.getenv("SOURCE_USERNAME");
+    private static String targetFhirStoreUrl = System.getenv("SINK_URL");
+
+    public static void main( String[] args ) throws InterruptedException, URISyntaxException
+    {
+        if (args.length == 4) {
+            sourceUrl = args[0];
+
+            sourceUn = args[1].split("/")[0];
+            sourcePw = args[1].split("/")[1];
+            targetFhirStoreUrl = args[3];
+        } else if (args.length > 0) {
+            log.error("You should pass the following arguements:");
+            log.error("1) source url: the base url of the OpenMRS server (ending in 'openmrs').");
+            log.error("2) source auth user / password.");
+            log.error("3) destination type: `hapi` or `gcp`");
+            log.error("4) target FHIR Store url OR a GCP FHIR store in the following format:\n"
 			        + "projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIR_STORE \n"
 			        + "where the all-caps parts should be updated based on your FHIR store, e.g., \n"
 			        + "projects/my-project/locations/us-central1/datasets/my_dataset/fhirStores/test");
@@ -58,28 +57,41 @@ public class FhirStreaming {
 			        + "Use utils/create_db.sql to create these. \n");
 			return;
 		}
-		
+
 		if (sourceUrl == null || sourceUn == null || sourcePw == null || targetFhirStoreUrl == null) {
 			log.info(
 			    "The following environmental variables need to be set: SOURCE_URL, SOURCE_PW, SOURCE_USERNAME, and SINK_URL");
 		}
-		
+
 		String feedEndpoint = System.getenv("SOURCE_FEED_ENDPOINT") == null ? "/ws/atomfeed"
 		        : System.getenv("SOURCE_FEED_ENDPOINT");
 		String fhirEndpoint = System.getenv("SOURCE_FHIR_ENDPOINT") == null ? "/ws/fhir2/R4"
 		        : System.getenv("SOURCE_FHIR_ENDPOINT");
-		
+
 		String feedUrl = sourceUrl + feedEndpoint;
 		String fhirUrl = sourceUrl + fhirEndpoint;
-		
+
+
+        if(sourceUrl == null  || sourceUn == null || sourcePw == null || targetFhirStoreUrl == null) {
+            System.out.println("The following environmental variables need to be set: SOURCE_URL, SOURCE_PW, SOURCE_USERNAME, and SINK_URL");
+            return;
+        }
+
+        String feedEndpoint = System.getenv("SOURCE_FEED_ENDPOINT") == null ? "/ws/atomfeed" : System.getenv("SOURCE_FEED_ENDPOINT");
+        String fhirEndpoint = System.getenv("SOURCE_FHIR_ENDPOINT") == null ? "/ws/fhir2/R4" : System.getenv("SOURCE_FHIR_ENDPOINT");
+
+        String feedUrl = sourceUrl + feedEndpoint;
+        String fhirUrl = sourceUrl + fhirEndpoint;
+
 		// We can load ApplicationContext from the openmrs dependency like this but there should be
 		// an easier/more lightweight way of just using the AtomFeedClient which is all we need!
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:/applicationContext-service.xml");
-		
+
 		log.info("Started listening on the feed " + feedUrl);
-		
-		FeedConsumer feedConsumer = new FeedConsumer(feedUrl, fhirUrl, sourceUn, sourcePw, targetFhirStoreUrl);
-		
+
+		// FeedConsumer feedConsumer = new FeedConsumer(feedUrl, fhirUrl, sourceUn, sourcePw, targetFhirStoreUrl);
+        FeedConsumer feedConsumer = new FeedConsumer(feedUrl, fhirUrl, sourceUn, sourcePw, targetFhirStoreUrl);
+
 		while (true) {
 			feedConsumer.listen();
 			Thread.sleep(3000);
