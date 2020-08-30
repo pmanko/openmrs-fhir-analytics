@@ -11,12 +11,13 @@ public class FhirStoreUtilTest {
 	
 	@Test(expected = IllegalArgumentException.class)
 	public void testConstructorWithMalformedStore() {
-		FhirStoreUtil fhirStoreUtil = new FhirStoreUtil("test");
+		FhirStoreUtil fhirStoreUtil = new FhirStoreUtil("test", "somesource", "someuser", "somepw");
 	}
 	
 	@Test
 	public void testConstructor() {
 		FhirStoreUtil fhirStoreUtil = new FhirStoreUtil(
-		        "projects/my_project-123/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test");
+		        "projects/my_project-123/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test", "somesource",
+		        "someuser", "somepw");
 	}
 }

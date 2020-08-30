@@ -14,8 +14,6 @@
 
 package org.openmrs.analytics;
 
-// import com.google.auth.http.HttpCredentialsAdapter;
-// import com.google.auth.oauth2.GoogleCredentials;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -24,6 +22,10 @@ import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.rest.client.api.IClientInterceptor;
+import ca.uhn.fhir.rest.client.api.IGenericClient;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -40,12 +42,23 @@ import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
+import org.hl7.fhir.r4.model.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FhirStoreUtil {
 	
-	private static final Logger log = LoggerFactory.getLogger(FhirStoreUtil.class);
+	protected static final Logger log = LoggerFactory.getLogger(FhirStoreUtil.class);
+	
+	protected static FhirContext fhirContext = FhirContext.forR4();
+	
+	protected String targetFhirStoreUrl;
+	
+	protected String sourceFhirUrl;
+	
+	protected String sourceUser;
+	
+	protected String sourcePw;
 	
 	private static final Pattern FHIR_PATTERN = Pattern
 	        .compile("projects/[\\w-]+/locations/[\\w-]+/datasets/[\\w-]+/fhirStores/[\\w-]+");
@@ -56,7 +69,13 @@ public class FhirStoreUtil {
 	
 	private String gcpFhirStore;
 	
-	FhirStoreUtil(String gcpFhirStore) throws IllegalArgumentException {
+	FhirStoreUtil(String gcpFhirStore, String sourceFhirUrl, String sourceUser, String sourcePw)
+	        throws IllegalArgumentException {
+		this.targetFhirStoreUrl = gcpFhirStore;
+		this.sourceFhirUrl = sourceFhirUrl;
+		this.sourceUser = sourceUser;
+		this.sourcePw = sourcePw;
+		
 		Matcher fhirMatcher = FHIR_PATTERN.matcher(gcpFhirStore);
 		if (!fhirMatcher.matches()) {
 			throw new IllegalArgumentException(
@@ -65,34 +84,11 @@ public class FhirStoreUtil {
 		this.gcpFhirStore = gcpFhirStore;
 	}
 	
-	public String executeRequest(HttpUriRequest request) {
-		try {
-			// Execute the request and process the results.
-			HttpClient httpClient = HttpClients.createDefault();
-			HttpResponse response = httpClient.execute(request);
-			HttpEntity responseEntity = response.getEntity();
-			ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-			responseEntity.writeTo(byteStream);
-			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_CREATED
-			        && response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-				log.error(String.format("Exception for resource %s: %s", request.getURI().toString(),
-				    response.getStatusLine().toString()));
-				log.error(byteStream.toString());
-				throw new RuntimeException();
-			}
-			return byteStream.toString();
-		}
-		catch (IOException e) {
-			log.error("Error in opening url: " + request.getURI().toString() + " exception: " + e);
-			return "";
-		}
-	}
-	
 	// This follows the examples at:
 	// https://github.com/GoogleCloudPlatform/java-docs-samples/healthcare/tree/master/healthcare/v1
-	public void uploadResourceToCloud(String resourceType, String resourceId, String jsonResource) {
+	public void uploadResourceToCloud(String resourceId, Resource resource) {
 		try {
-			updateFhirResource(gcpFhirStore, resourceType, resourceId, jsonResource);
+			updateFhirResource(gcpFhirStore, resourceId, resource);
 		}
 		catch (IOException e) {
 			log.error(String.format("IOException while using Google APIs: %s", e.toString()));
@@ -102,14 +98,17 @@ public class FhirStoreUtil {
 		}
 	}
 	
-	private void updateFhirResource(String fhirStoreName, String resourceType, String resourceId, String jsonResource)
+	private void updateFhirResource(String fhirStoreName, String resourceId, Resource resource)
 	        throws IOException, URISyntaxException {
 		// Initialize the client, which will be used to interact with the service.
 		CloudHealthcare client = createClient();
-		String uri = String.format("%sv1/%s/fhir/%s/%s", client.getRootUrl(), fhirStoreName, resourceType, resourceId);
+		String uri = String.format("%sv1/%s/fhir/%s/%s", client.getRootUrl(), fhirStoreName, resource.getResourceType(),
+		    resourceId);
 		URIBuilder uriBuilder = new URIBuilder(uri);
 		log.info(String.format("Full URL is: %s", uriBuilder.build()));
-		StringEntity requestEntity = new StringEntity(jsonResource, StandardCharsets.UTF_8);
+		
+		StringEntity requestEntity = new StringEntity(fhirContext.newJsonParser().encodeResourceToString(resource),
+		        StandardCharsets.UTF_8);
 		
 		HttpUriRequest request = RequestBuilder.put().setUri(uriBuilder.build()).setEntity(requestEntity)
 		        .addHeader("Content-Type", "application/fhir+json").addHeader("Accept-Charset", "utf-8")
@@ -156,6 +155,43 @@ public class FhirStoreUtil {
 		GoogleCredential credential = GoogleCredential.getApplicationDefault(HTTP_TRANSPORT, JSON_FACTORY)
 		        .createScoped(Collections.singleton(CloudHealthcareScopes.CLOUD_PLATFORM));
 		return credential;
+	}
+	
+	public String executeRequest(HttpUriRequest request) {
+		try {
+			// Execute the request and process the results.
+			HttpClient httpClient = HttpClients.createDefault();
+			HttpResponse response = httpClient.execute(request);
+			HttpEntity responseEntity = response.getEntity();
+			ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+			responseEntity.writeTo(byteStream);
+			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_CREATED
+			        && response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+				log.error(String.format("Exception for resource %s: %s", request.getURI().toString(),
+				    response.getStatusLine().toString()));
+				log.error(byteStream.toString());
+				throw new RuntimeException();
+			}
+			return byteStream.toString();
+		}
+		catch (IOException e) {
+			log.error("Error in opening url: " + request.getURI().toString() + " exception: " + e);
+			return "";
+		}
+	}
+	
+	public FhirContext getFhirContext() {
+		return fhirContext;
+	}
+	
+	public IGenericClient getSourceClient() {
+		IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sourceUser, this.sourcePw);
+		fhirContext.getRestfulClientFactory().setSocketTimeout(200 * 1000);
+		
+		IGenericClient client = fhirContext.newRestfulGenericClient(this.sourceFhirUrl);
+		client.registerInterceptor(authInterceptor);
+		
+		return client;
 	}
 	
 }

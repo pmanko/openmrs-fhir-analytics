@@ -17,7 +17,7 @@ package org.openmrs.analytics;
 import java.util.ArrayList;
 import java.util.List;
 
-import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.rest.api.SummaryEnum;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.options.Default;
@@ -46,19 +46,25 @@ public class FhirEtl {
 	public interface FhirEtlOptions extends PipelineOptions {
 		
 		/**
-		 * By default, this reads from the MySQL DB `openmrs` at the default port on localhost.
+		 * By default, this reads from the OpenMRS instance `openmrs` at the default port on localhost.
 		 */
 		@Description("OpenMRS server URL")
 		@Required
-		@Default.String("http://localhost:8080/openmrs")
 		String getServerUrl();
 		
 		void setServerUrl(String value);
 		
+		@Description("OpenMRS server fhir endpoint")
+		@Required
+		@Default.String("/ws/fhir2/R4")
+		String getServerFhirEndpoint();
+		
+		void setServerFhirEndpoint(String value);
+		
 		@Description("Comma separated list of resource and search parameters to fetch; in its simplest "
 		        + "form this is a list of resources, e.g., `Patient,Encounter,Observation` but more "
 		        + "complex search paths are possible too, e.g., `Patient?name=Susan`.")
-		@Default.String("Patient,Encounter,Observation")
+		@Default.String("Patient,Practitioner,AllergyIntolerance,Encounter")
 		String getSearchList();
 		
 		void setSearchList(String value);
@@ -69,38 +75,42 @@ public class FhirEtl {
 		
 		void setBatchSize(int value);
 		
-		// TODO(bashir2): Switch to BasicAuth instead of relying on cookies.
-		@Description("JSESSIONID cookie value to circumvent OpenMRS server authentication.")
+		@Description("BasicAuth Username")
 		@Required
-		String getJsessionId();
+		String getUsername();
 		
-		void setJsessionId(String value);
+		void setUsername(String value);
 		
-		@Description("The sink GCP FHIR store with the format: "
+		@Description("BasicAuth Password")
+		@Required
+		String getPassword();
+		
+		void setPassword(String value);
+		
+		@Description("The target fhir store OR GCP FHIR store with the format: "
 		        + "`projects/[\\w-]+/locations/[\\w-]+/datasets/[\\w-]+/fhirStores/[\\w-]+`, e.g., "
 		        + "`projects/my-project/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test`")
 		@Required
-		String getGcpFhirStore();
+		String getFhirStoreUrl();
 		
-		void setGcpFhirStore(String value);
-		
-		// TODO(bashir2): Add options for writing to various data warehouses or file types.
+		void setFhirStoreUrl(String value);
 	}
 	
-	static FhirSearchUtil creatFhirSearchUtil(FhirEtlOptions options) {
-		FhirContext fhirContext = FhirContext.forR4();
-		FhirStoreUtil fhirStoreUtil = new FhirStoreUtil(options.getGcpFhirStore());
-		return new FhirSearchUtil(fhirStoreUtil, fhirContext);
+	static FhirSearchUtil createFhirSearchUtil(FhirEtlOptions options) {
+		return new FhirSearchUtil(createFhirStoreUtil(options.getFhirStoreUrl(),
+		    options.getServerUrl() + options.getServerFhirEndpoint(), options.getUsername(), options.getPassword()));
+	}
+	
+	static FhirStoreUtil createFhirStoreUtil(String fhirStoreUrl, String sourceUrl, String sourceUser, String sourcePw) {
+		return new FhirStoreUtil(fhirStoreUrl, sourceUrl, sourceUser, sourcePw);
 	}
 	
 	static List<SearchSegmentDescriptor> createSegments(FhirEtlOptions options) throws CannotProvideCoderException {
-		FhirSearchUtil fhirSearchUtil = creatFhirSearchUtil(options);
+		FhirSearchUtil fhirSearchUtil = createFhirSearchUtil(options);
 		List<SearchSegmentDescriptor> segments = new ArrayList<>();
-		FhirContext fhirContext = FhirContext.forR4();
 		for (String resourceType : options.getSearchList().split(",")) {
-			String searchUrl = options.getServerUrl() + "/ws/fhir2/R4/" + resourceType;
-			Bundle searchBundle = fhirSearchUtil.searchForResource(searchUrl, options.getBatchSize(), 0,
-			    options.getJsessionId(), true, fhirContext);
+			String searchUrl = options.getServerUrl() + options.getServerFhirEndpoint() + "/" + resourceType;
+			Bundle searchBundle = fhirSearchUtil.searchForResource(resourceType, options.getBatchSize(), SummaryEnum.DATA);
 			if (searchBundle == null) {
 				log.error("Cannot fetch resources for " + searchUrl);
 				throw new IllegalStateException("Cannot fetch resources for " + searchUrl);
@@ -113,8 +123,7 @@ public class FhirEtl {
 			} else {
 				String baseNextUrl = fhirSearchUtil.findBaseSearchUrl(searchBundle);
 				for (int offset = 0; offset < total; offset += options.getBatchSize()) {
-					segments.add(SearchSegmentDescriptor.create(baseNextUrl, offset, options.getBatchSize(),
-					    options.getJsessionId()));
+					segments.add(SearchSegmentDescriptor.create(baseNextUrl, offset, options.getBatchSize()));
 				}
 			}
 		}
@@ -124,29 +133,35 @@ public class FhirEtl {
 	
 	static class FetchSearchPageFn extends DoFn<SearchSegmentDescriptor, DomainResource> {
 		
-		private String gcpFhirStore;
+		private String sourceUrl;
 		
-		private FhirContext fhirContext;
+		private String sourceUser;
+		
+		private String sourcePw;
+		
+		private String fhirStoreUrl;
 		
 		private FhirSearchUtil fhirSearchUtil;
 		
 		private FhirStoreUtil fhirStoreUtil;
 		
-		FetchSearchPageFn(String gcpFhirStore) {
-			this.gcpFhirStore = gcpFhirStore;
+		FetchSearchPageFn(String fhirStoreUrl, String sourceUrl, String sourceUser, String sourcePw) {
+			this.fhirStoreUrl = fhirStoreUrl;
+			this.sourceUrl = sourceUrl;
+			this.sourceUser = sourceUser;
+			this.sourcePw = sourcePw;
 		}
 		
 		@Setup
 		public void Setup() {
-			this.fhirContext = FhirContext.forR4();
-			this.fhirStoreUtil = new FhirStoreUtil(gcpFhirStore);
-			this.fhirSearchUtil = new FhirSearchUtil(fhirStoreUtil, fhirContext);
+			this.fhirStoreUtil = createFhirStoreUtil(this.fhirStoreUrl, this.sourceUrl, this.sourceUser, this.sourcePw);
+			this.fhirSearchUtil = new FhirSearchUtil(fhirStoreUtil);
 		}
 		
 		@ProcessElement
 		public void ProcessElement(@Element SearchSegmentDescriptor segment, OutputReceiver<DomainResource> out) {
-			Bundle pageBundle = fhirSearchUtil.searchForResource(segment.searchUrl(), segment.count(), segment.pageOffset(),
-			    segment.jsessionId(), true, fhirContext);
+			Bundle pageBundle = fhirSearchUtil.searchByPage(segment.pagesId(), segment.count(), segment.pageOffset(),
+			    SummaryEnum.DATA);
 			fhirSearchUtil.uploadBundleToCloud(pageBundle);
 		}
 	}
@@ -158,7 +173,8 @@ public class FhirEtl {
 		}
 		
 		Pipeline p = Pipeline.create(options);
-		p.apply(Create.of(segments)).apply(ParDo.of(new FetchSearchPageFn(options.getGcpFhirStore())));
+		p.apply(Create.of(segments)).apply(ParDo.of(new FetchSearchPageFn(options.getFhirStoreUrl(),
+		        options.getServerUrl() + options.getServerFhirEndpoint(), options.getUsername(), options.getPassword())));
 		p.run().waitUntilFinish();
 	}
 	
