@@ -37,39 +37,40 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FeedConsumer {
+	
 	private static final Logger log = LoggerFactory.getLogger(FeedConsumer.class);
-
+	
 	private List<AtomFeedClient> feedClients = new ArrayList<>();
-
+	
 	FeedConsumer(String feedUrl, String fhirUrl, String sourceUser, String sourcePW, String targetFhirStore)
 	        throws URISyntaxException {
 		// TODO what we really need is a list of pairs!
 		Map<String, Class> categories = new LinkedHashMap<>();
-
+		
 		// TODO add other FHIR resources that are implemented in OpenMRS.
-    categories.put("allergy", AllergyIntolerance.class);
-    categories.put("encounter", Encounter.class);
-    categories.put("location", Location.class);
-    categories.put("drug", Medication.class);
-    categories.put("drug_order", MedicationRequest.class);
-    categories.put("observation", Observation.class);
-	    categories.put("patient", Patient.class);
-    categories.put("person", Person.class);
-    categories.put("provider", Practitioner.class);
-    categories.put("test_order", ServiceRequest.class);
-
+		categories.put("allergy", AllergyIntolerance.class);
+		categories.put("encounter", Encounter.class);
+		categories.put("location", Location.class);
+		categories.put("drug", Medication.class);
+		categories.put("drug_order", MedicationRequest.class);
+		categories.put("observation", Observation.class);
+		categories.put("patient", Patient.class);
+		categories.put("person", Person.class);
+		categories.put("provider", Practitioner.class);
+		categories.put("test_order", ServiceRequest.class);
+		
 		for (Map.Entry<String, Class> entry : categories.entrySet()) {
-      		AtomFeedClient feedClient = AtomFeedClientFactory
+			AtomFeedClient feedClient = AtomFeedClientFactory
 			        .createClient(new FhirEventWorker(fhirUrl, entry.getValue(), sourceUser, sourcePW, targetFhirStore));
-
+			
 			// TODO check if this can be set by configuring above factory call & finalize the feed number.
 			URI feedUri = new URI(feedUrl + "/" + entry.getKey().toLowerCase() + "/1");
-
+			
 			feedClient.setUri(feedUri);
 			feedClients.add(feedClient);
 		}
 	}
-
+	
 	public void listen() {
 		for (AtomFeedClient client : feedClients) {
 			try {
@@ -80,5 +81,5 @@ public class FeedConsumer {
 			}
 		}
 	}
-
+	
 }

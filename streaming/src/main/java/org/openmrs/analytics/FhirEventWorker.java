@@ -26,45 +26,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FhirEventWorker<T extends BaseResource> implements EventWorker {
-
+	
 	private static final Logger log = LoggerFactory.getLogger(FhirEventWorker.class);
-
+	
 	private String sourceUrl;
-
+	
 	private String resourceType;
-
+	
 	private Class<T> resourceClass;
-
+	
 	private FhirStoreUtil fhirStoreUtil;
-
+	
 	private String sourceUser;
-
+	
 	private String sourcePw;
-
+	
 	FhirEventWorker(String sourceUrl, Class<T> resourceClass, String sourceUser, String sourcePW, String targetUrl) {
 		this.sourceUrl = sourceUrl;
 		this.resourceClass = resourceClass;
 		this.sourceUser = sourceUser;
 		this.sourcePw = sourcePW;
-
-		if(targetUrl.contains("projects"))
+		
+		if (targetUrl.contains("projects"))
 			this.fhirStoreUtil = new GcpStoreUtil(targetUrl, sourceUrl, sourceUser, sourcePW);
 		else
 			this.fhirStoreUtil = new HapiStoreUtil(targetUrl, sourceUrl, sourceUser, sourcePW);
 	}
-
+	
 	private T fetchFhirResource(String resourceUrl) {
 		try {
 			// Create client
 			IGenericClient client = fhirStoreUtil.getSourceClient();
-
+			
 			// Parse resourceUrl
 			String[] sepUrl = resourceUrl.split("/");
 			String resourceId = sepUrl[sepUrl.length - 1];
 			String resourceType = sepUrl[sepUrl.length - 2];
-
+			
 			T resource = (T) client.read().resource(resourceType).withId(resourceId).execute();
-
+			
 			return resource;
 		}
 		catch (Exception e) {
@@ -72,7 +72,7 @@ public class FhirEventWorker<T extends BaseResource> implements EventWorker {
 			return null;
 		}
 	}
-
+	
 	@Override
 	public void process(Event event) {
 		String content = event.getContent();
@@ -87,26 +87,26 @@ public class FhirEventWorker<T extends BaseResource> implements EventWorker {
 				log.info("Skipping non-FHIR event " + event);
 				return;
 			}
-
+			
 			if (!fhirUrl.contains("fhir2"))
 				fhirUrl = fhirUrl.replace("/fhir", "/fhir2/R4");
-
+			
 			log.info("FHIR resource URL is: " + fhirUrl);
 			T resource = fetchFhirResource(fhirUrl);
 			String resourceId = resource.getIdElement().getResourceType() + "/" + resource.getIdElement().getIdPart();
-
+			
 			log.info(String.format("Parsed FHIR resource ID is %s", resourceId));
-
+			
 			fhirStoreUtil.uploadResourceToCloud(resourceId, (Resource) resource);
 		}
 		catch (JsonParseException e) {
 			log.error(String.format("Error parsing event %s with error %s", event.toString(), e.toString()));
 		}
 	}
-
+	
 	@Override
 	public void cleanUp(Event event) {
 		log.info("In clean-up!");
 	}
-
+	
 }

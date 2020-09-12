@@ -14,19 +14,12 @@
 
 package org.openmrs.analytics;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-
-import ca.uhn.fhir.rest.api.MethodOutcome;
-import ca.uhn.fhir.rest.client.api.IGenericClient;
-import org.hl7.fhir.r4.model.Resource;
-
 //import com.google.auth.http.HttpCredentialsAdapter;
 //import com.google.auth.oauth2.GoogleCredentials;
 
 public class HapiStoreUtil extends FhirStoreUtil {
-
-  public HapiStoreUtil(String targetFhirStoreUrl, String sourceFhirUrl, String sourceUser, String sourcePw) {
-    super(targetFhirStoreUrl, sourceFhirUrl, sourceUser, sourcePw);
-  }
+	
+	public HapiStoreUtil(String targetFhirStoreUrl, String sourceFhirUrl, String sourceUser, String sourcePw) {
+		super(targetFhirStoreUrl, sourceFhirUrl, sourceUser, sourcePw);
+	}
 }
