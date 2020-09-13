@@ -46,6 +46,24 @@
 		<module>common</module>
 	</modules>
 
+	<profiles>
+     	<profile>
+       		<id>streaming</id>
+          	<modules>
+				<module>streaming</module>
+				<module>common</module>
+          	</modules> 
+      	</profile>
+
+		<profile>
+       		<id>batch</id>
+          	<modules>
+				<module>batch</module>
+				<module>common</module>
+          	</modules> 
+      	</profile>
+  	</profiles>
+
 	<repositories>
 		<repository>
 			<id>openmrs-repo</id>

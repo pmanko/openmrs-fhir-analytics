@@ -29,27 +29,26 @@ public class FhirStreaming {
 	private static final Logger log = LoggerFactory.getLogger(FhirEventWorker.class);
 	
 	// TODO: provide option for GCP and HAPI, using either arguements of env vars.
-	private static String sourceUrl = System.getenv("SOURCE_URL");
+	private static String sourceUrl;
 	
-	private static String sourcePw = System.getenv("SOURCE_PW");
+	private static String sourcePw;
 	
-	private static String sourceUn = System.getenv("SOURCE_USERNAME");
+	private static String sourceUn;
 	
-	private static String targetFhirStoreUrl = System.getenv("SINK_URL");
+	private static String targetFhirStoreUrl;
 	
 	public static void main(String[] args) throws InterruptedException, URISyntaxException {
-		if (args.length == 4) {
+		if (args.length == 3) {
 			sourceUrl = args[0];
 			
 			sourceUn = args[1].split("/")[0];
 			sourcePw = args[1].split("/")[1];
-			targetFhirStoreUrl = args[3];
-		} else if (args.length > 0) {
+			targetFhirStoreUrl = args[2];
+		} else {
 			log.error("You should pass the following arguements:");
 			log.error("1) source url: the base url of the OpenMRS server (ending in 'openmrs').");
 			log.error("2) source auth user / password.");
-			log.error("3) destination type: `hapi` or `gcp`");
-			log.error("4) target FHIR Store url OR a GCP FHIR store in the following format:\n"
+			log.error("3) target FHIR Store url OR a GCP FHIR store in the following format:\n"
 			        + "projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIR_STORE \n"
 			        + "where the all-caps parts should be updated based on your FHIR store, e.g., \n"
 			        + "projects/my-project/locations/us-central1/datasets/my_dataset/fhirStores/test");
@@ -57,12 +56,6 @@ public class FhirStreaming {
 			        + "exists (configurable in `hibernate.default.properties`) with tables \n"
 			        + "'failed_events' and 'markers' to track feed progress. \n"
 			        + "Use utils/create_db.sql to create these. \n");
-			return;
-		}
-		
-		if (sourceUrl == null || sourceUn == null || sourcePw == null || targetFhirStoreUrl == null) {
-			System.out.println(
-			    "The following environmental variables need to be set: SOURCE_URL, SOURCE_PW, SOURCE_USERNAME, and SINK_URL");
 			return;
 		}
 		
