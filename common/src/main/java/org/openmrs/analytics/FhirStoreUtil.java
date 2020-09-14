@@ -76,9 +76,9 @@ public class FhirStoreUtil {
 		IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sourceUser, this.sourcePw);
 		fhirContext.getRestfulClientFactory().setSocketTimeout(200 * 1000);
 		
-		IGenericClient client = fhirContext.newRestfulGenericClient(this.sourceFhirUrl);
+		IGenericClient client = fhirContext.getRestfulClientFactory().newGenericClient(this.sourceFhirUrl);
 		client.registerInterceptor(authInterceptor);
-		
+
 		return client;
 	}
 	
