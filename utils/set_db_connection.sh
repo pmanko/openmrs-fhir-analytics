@@ -7,4 +7,4 @@ sed -i "s/<DB_PASSWORD>/$DB_PASSWORD/g" ./streaming/src/main/resources/hibernate
 ESCAPED_REPLACE=$(printf '%s\n' "$DB_CONNECTION" | sed -e 's/[\/&]/\\&/g')
 sed -i "s/<DB_CONNECTION>/$ESCAPED_REPLACE/g" ./streaming/src/main/resources/hibernate.default.properties
 
-mvn -p streaming clean install -DskipTests
+mvn clean install -DskipTests

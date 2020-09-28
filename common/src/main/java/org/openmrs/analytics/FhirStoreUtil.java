@@ -78,7 +78,7 @@ public class FhirStoreUtil {
 		
 		IGenericClient client = fhirContext.getRestfulClientFactory().newGenericClient(this.sourceFhirUrl);
 		client.registerInterceptor(authInterceptor);
-
+		
 		return client;
 	}
 	

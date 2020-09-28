@@ -23,14 +23,8 @@ import java.util.Map;
 
 import org.hl7.fhir.r4.model.AllergyIntolerance;
 import org.hl7.fhir.r4.model.Encounter;
-import org.hl7.fhir.r4.model.Location;
-import org.hl7.fhir.r4.model.Medication;
-import org.hl7.fhir.r4.model.MedicationRequest;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Person;
-import org.hl7.fhir.r4.model.Practitioner;
-import org.hl7.fhir.r4.model.ServiceRequest;
 import org.openmrs.module.atomfeed.client.AtomFeedClient;
 import org.openmrs.module.atomfeed.client.AtomFeedClientFactory;
 import org.slf4j.Logger;
@@ -50,12 +44,12 @@ public class FeedConsumer {
 		// TODO add other FHIR resources that are implemented in OpenMRS.
 		categories.put("allergy", AllergyIntolerance.class);
 		categories.put("encounter", Encounter.class);
-//		categories.put("drug", Medication.class);
-//		categories.put("drug_order", MedicationRequest.class);
+		//		categories.put("drug", Medication.class);
+		//		categories.put("drug_order", MedicationRequest.class);
 		categories.put("observation", Observation.class);
 		categories.put("patient", Patient.class);
-//		categories.put("person", Person.class);
-// 		categories.put("provider", Practitioner.class);
+		//		categories.put("person", Person.class);
+		// 		categories.put("provider", Practitioner.class);
 		
 		for (Map.Entry<String, Class> entry : categories.entrySet()) {
 			AtomFeedClient feedClient = AtomFeedClientFactory
