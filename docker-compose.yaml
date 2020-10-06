@@ -25,12 +25,13 @@ services:
     healthcheck:
       test: "exit 0"
     environment:
-     - GCP_FHIR_STORE=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
-     - JSESSION_ID=3B09C6775C95D45A35AB3F1303E3BA15 # TODO replace with basic auth implementation by @pmanko
-     - SERVER_URL=http://localhost:8099/openmrs
-     - SEARCH_LIST=Patient,Encounter,Observation
-     - BATCH_SIZE=20
-     - TARGET_PARALLELISM=20
+      - SERVER_URL=https://isanteplusdemo.com/openmrs
+      - SEARCH_LIST=Patient,Encounter,Observation
+      - BATCH_SIZE=20
+      - TARGET_PARALLELISM=20
+      - SOURCE_PW=Admin123
+      - SOURCE_USERNAME=admin
+      - GCP_FHIR_STORE=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
 
   streaming-binlog: # To run independently: docker-compose up --build streaming-binlog
     build:
@@ -50,5 +51,38 @@ services:
                      -Dopenmrs.serverUrl=http://localhost:8099 -Dopenmrs.fhirBaseEndpoint=/openmrs/ws/fhir2/R4
                      -Dcloud.gcpFhirStore=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
 
+  streaming-atomfeed:
+    container_name: openmrs-streaming
+    hostname: openmrs-streaming
+    build:
+      context: streaming-atomfeed
+    healthcheck:
+      test: "exit 0"
+    depends_on:
+      - atomfeed-db
+    environment:
+      - SOURCE_URL=http://localhost:8099
+      - SOURCE_FEED_ENDPOINT=/ws/atomfeed
+      - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
+      - SOURCE_PW=Admin123
+      - SOURCE_USERNAME=admin
+      - GCP_FHIR_STORE=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
+    volumes:
+      - ./:/app/openmrs-fhir-analytics
 
-  # TODO add attomfeed streaming - I think @pmanko is working on
+  streaming-atomfeed-db:
+    container_name: streaming-atomfeed-db
+    hostname: streaming-atomfeed-db
+    image: mysql:5.7
+    healthcheck:
+      test: "exit 0"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=fhir
+      - MYSQL_PASSWORD=fhiranalytics
+      - MYSQL_DATABASE=atomfeed_client
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./utils/create_db.sql:/docker-entrypoint-initdb.d/dump.sql
+
