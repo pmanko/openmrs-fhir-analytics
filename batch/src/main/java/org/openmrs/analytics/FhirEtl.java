@@ -105,10 +105,10 @@ public class FhirEtl {
 	}
 	
 	static FhirStoreUtil createFhirStoreUtil(String fhirStoreUrl, FhirContext fhirContext) {
-		if (GcpStoreUtilImpl.matchesGcpPattern(fhirStoreUrl))
-			return new GcpStoreUtilImpl(fhirStoreUrl, fhirContext);
+		if (GcpStoreUtil.matchesGcpPattern(fhirStoreUrl))
+			return new GcpStoreUtil(fhirStoreUrl, fhirContext);
 		else
-			return new FhirStoreUtilImpl(fhirStoreUrl, fhirContext);
+			return new FhirStoreUtil(fhirStoreUrl, fhirContext);
 	}
 	
 	static OpenmrsUtil createOpenmrsUtil(String sourceUrl, String sourceUser, String sourcePw, FhirContext fhirContext) {

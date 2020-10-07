@@ -16,12 +16,12 @@ public class FhirStoreUtilTest {
 	
 	@Test(expected = IllegalArgumentException.class)
 	public void testConstructorWithMalformedStore() {
-		FhirStoreUtil fhirStoreUtil = new GcpStoreUtilImpl("test", fhirContext);
+		FhirStoreUtil fhirStoreUtil = new GcpStoreUtil("test", fhirContext);
 	}
 	
 	@Test
 	public void testConstructor() {
-		FhirStoreUtil fhirStoreUtil = new GcpStoreUtilImpl(
+		FhirStoreUtil fhirStoreUtil = new GcpStoreUtil(
 		        "projects/my_project-123/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test", fhirContext);
 	}
 }

@@ -47,9 +47,9 @@ public class PipelineSink implements Processor {
 		String fhirStoreUrl = System.getProperty("cloud.gcpFhirStore");
 		
 		// TODO: Autowire
-		if (GcpStoreUtilImpl.matchesGcpPattern(fhirStoreUrl))
-			new GcpStoreUtilImpl(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
+		if (GcpStoreUtil.matchesGcpPattern(fhirStoreUrl))
+			new GcpStoreUtil(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
 		else
-			new FhirStoreUtilImpl(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
+			new FhirStoreUtil(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
 	}
 }
