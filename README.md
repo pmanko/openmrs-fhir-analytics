@@ -273,7 +273,10 @@ Remember to appropriately change other parameters such as JSESSION_ID (extracted
 
 #### 6. Fire up Streaming Pipeline (Atomfeed)
 
-TODO
+```
+ $ mvn clean install
+ $ docker-compose up -d --build streaming-atomfeed-db streaming-atomfeed
+```
  
 **TODO**: Add details on how this works and caveats!
 

@@ -52,14 +52,15 @@ services:
                      -Dcloud.gcpFhirStore=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
 
   streaming-atomfeed:
-    container_name: openmrs-streaming
+    container_name: streaming-atomfeed
     hostname: openmrs-streaming
     build:
-      context: streaming-atomfeed
+      context: ./
+      dockerfile: ./streaming-atomfeed/Dockerfile
     healthcheck:
       test: "exit 0"
     depends_on:
-      - atomfeed-db
+      - streaming-atomfeed-db
     environment:
       - SOURCE_URL=http://localhost:8099
       - SOURCE_FEED_ENDPOINT=/ws/atomfeed
@@ -69,6 +70,10 @@ services:
       - GCP_FHIR_STORE=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
     volumes:
       - ./:/app/openmrs-fhir-analytics
+      - m2repo:/root/.m2
+    stdin_open: true
+    tty: true
+    entrypoint: /bin/bash
 
   streaming-atomfeed-db:
     container_name: streaming-atomfeed-db
@@ -85,4 +90,5 @@ services:
       - "3307:3306"
     volumes:
       - ./utils/create_db.sql:/docker-entrypoint-initdb.d/dump.sql
-
+volumes:
+  m2repo:
