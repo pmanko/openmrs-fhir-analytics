@@ -19,6 +19,7 @@ import java.util.Map;
 import ca.uhn.fhir.context.FhirContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
+import org.hl7.fhir.r4.model.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +33,6 @@ public class PipelineSink implements Processor {
 	// FhirContext
 	private static final FhirContext fhirContext = FhirContext.forR4();
 	
-	// FhirStore
-	private static final FhirStoreUtil FHIR_STORE_UTIL = new FhirStoreUtil(System.getProperty("cloud.gcpFhirStore"),
-	        fhirContext);
-	
 	// Send to cloud TODO implement sink to local
 	public void process(Exchange exchange) throws Exception {
 		final Map kv = exchange.getMessage().getBody(Map.class);
@@ -43,7 +40,16 @@ public class PipelineSink implements Processor {
 		String id = kv.get("id").toString();
 		String fhirJson = exchange.getMessage().getBody(String.class);
 		log.info("Sinking FHIR to Cloud ----> " + kv.get("resourceType") + "/" + kv.get("id"));
-		// TODO read in a HAPI structures resource instead of raw json
-		FHIR_STORE_UTIL.uploadResourceToCloud(resourceType, id, fhirJson);
+		
+		Resource resource = (Resource) fhirContext.newJsonParser().parseResource(fhirJson);
+		resource.setId(id);
+		
+		String fhirStoreUrl = System.getProperty("cloud.gcpFhirStore");
+		
+		// TODO: Autowire
+		if (GcpStoreUtilImpl.matchesGcpPattern(fhirStoreUrl))
+			new GcpStoreUtilImpl(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
+		else
+			new FhirStoreUtilImpl(fhirStoreUrl, fhirContext).uploadResourceToCloud(resource);
 	}
 }
