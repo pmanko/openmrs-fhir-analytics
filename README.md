@@ -98,7 +98,7 @@ To set up GCP project that you can use as a sink FHIR store:
 - Download, install, and initialize the `gcloud` cli: https://cloud.google.com/sdk/docs/quickstart
 - Make sure you can authenticate with the project using the CLI: https://developers.google.com/identity/sign-in/web/sign-in
   * `gcloud init`
-  * `gcloud auth application-default login`
+  * `gcloud auth application-default login` (might not be necessary)
   * Create a service account for the project, generate a key, and save it securely locally
   * Add the `bigquery.dataEditor` and `bigquery.jobUser` roles to the project in the `IAM & Admin`/`Roles` settings or using the cli:
     - `gcloud projects add-iam-policy-binding openmrs-260803 --role roles/bigquery.admin --member serviceAccount:openmrs-fhir-analytics@openmrs-260803.iam.gserviceaccount.com`
@@ -130,7 +130,7 @@ From the root of your git repo, run:
 and then:
 
 ```
-mvn exec:java -pl streaming \
+mvn exec:java -pl streaming-atomfeed \
   -Dexec.mainClass=org.openmrs.analytics.FhirStreaming \`
   -Dexec.args="OPENMRS_URL OPENMRS_USER/OPENMRS_PASSWORD GCP_FHIR_STORE"`
 ```
