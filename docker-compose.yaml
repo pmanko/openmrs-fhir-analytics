@@ -53,7 +53,7 @@ services:
 
   streaming-atomfeed:
     container_name: streaming-atomfeed
-    hostname: openmrs-streaming
+    hostname: streaming-atomfeed
     build:
       context: ./
       dockerfile: ./streaming-atomfeed/Dockerfile
@@ -62,18 +62,12 @@ services:
     depends_on:
       - streaming-atomfeed-db
     environment:
-      - SOURCE_URL=http://localhost:8099
+      - SOURCE_URL=https://isanteplusdemo.com/openmrs
       - SOURCE_FEED_ENDPOINT=/ws/atomfeed
       - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
       - SOURCE_PW=Admin123
       - SOURCE_USERNAME=admin
-      - GCP_FHIR_STORE=projects/openmrs-260803/locations/us-west2/datasets/fhirAnalytics/fhirStores/fhir-analytics
-    volumes:
-      - ./:/app/openmrs-fhir-analytics
-      - m2repo:/root/.m2
-#    stdin_open: true
-#    tty: true
-#    entrypoint: /bin/bash
+      - SINK_URL=http://18.158.139.243:8092/hapi-fhir-jpaserver/fhir
 
   streaming-atomfeed-db:
     container_name: streaming-atomfeed-db
@@ -86,9 +80,13 @@ services:
       - MYSQL_USER=fhir
       - MYSQL_PASSWORD=fhiranalytics
       - MYSQL_DATABASE=atomfeed_client
+      - MYSQL_ROOT_HOST=%
     ports:
       - "3307:3306"
     volumes:
+      - db:/var/lib/mysql
       - ./utils/dbdump/create_db.sql:/docker-entrypoint-initdb.d/dump.sql
+
 volumes:
   m2repo:
+  db:

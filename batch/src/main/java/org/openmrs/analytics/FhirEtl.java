@@ -65,7 +65,7 @@ public class FhirEtl {
 		@Description("Comma separated list of resource and search parameters to fetch; in its simplest "
 		        + "form this is a list of resources, e.g., `Patient,Encounter,Observation` but more "
 		        + "complex search paths are possible too, e.g., `Patient?name=Susan`.")
-		@Default.String("Patient,Encounter,Observation")
+		@Default.String("Patient,Encounter,Observation,Practitioner,AllergyIntolerance,Medication,MedicationRequest")
 		String getSearchList();
 		
 		void setSearchList(String value);
