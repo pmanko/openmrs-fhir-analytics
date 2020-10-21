@@ -7,6 +7,7 @@ import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.client.api.IClientInterceptor;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import org.hl7.fhir.r4.model.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,16 +19,27 @@ public class FhirStoreUtil {
 	protected FhirContext fhirContext;
 	
 	protected String sinkUrl;
-	
-	public FhirStoreUtil(String sinkUrl, FhirContext fhirContext) throws IllegalArgumentException {
+
+	protected String sinkUser;
+
+	protected String sinkPassword;
+
+	// BasicAuth
+	public FhirStoreUtil(String sinkUrl, String sinkUser, String sinkPassword, FhirContext fhirContext) throws IllegalArgumentException {
+		this.sinkUser = sinkUser;
+		this.sinkPassword = sinkPassword;
+		this.fhirContext = fhirContext;
+		this.sinkUrl = sinkUrl;
+	}
+
+	public FhirStoreUtil(String sinkUrl, FhirContext fhirContext) {
 		this.fhirContext = fhirContext;
 		this.sinkUrl = sinkUrl;
 	}
 	
 	public void uploadResourceToCloud(Resource resource) {
 		try {
-			IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sourceUser, this.sourcePw);
-		
+			IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sinkUser, this.sinkPassword);
 		
 			updateFhirResource(sinkUrl, resource, Collections.<IClientInterceptor> singleton(authInterceptor));
 		}
