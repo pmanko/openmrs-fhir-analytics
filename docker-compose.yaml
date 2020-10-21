@@ -65,8 +65,8 @@ services:
       - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
       - SOURCE_PW=Admin123
       - SOURCE_USERNAME=admin
-      - SINK_USER=
-      - SINK_PASSWORD=
+      - SINK_USER=shr
+      - SINK_PASSWORD=shr123
       - SINK_URL=http://18.158.139.243:5001/SHR/fhir
 
   streaming-atomfeed-db:
