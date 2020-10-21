@@ -26,7 +26,10 @@ public class FhirStoreUtil {
 	
 	public void uploadResourceToCloud(Resource resource) {
 		try {
-			updateFhirResource(sinkUrl, resource, Collections.<IClientInterceptor> emptyList());
+			IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sourceUser, this.sourcePw);
+		
+		
+			updateFhirResource(sinkUrl, resource, Collections.<IClientInterceptor> singleton(authInterceptor));
 		}
 		catch (Exception e) {
 			System.out.println(String.format("Exception while sending to sink: %s", e.toString()));
@@ -34,6 +37,7 @@ public class FhirStoreUtil {
 	}
 	
 	protected void updateFhirResource(String sinkUrl, Resource resource, Collection<IClientInterceptor> interceptors) {
+		fhirContext.getRestfulClientFactory().setSocketTimeout(200 * 1000);		
 		IGenericClient client = fhirContext.newRestfulGenericClient(sinkUrl);
 		
 		for (IClientInterceptor interceptor : interceptors) {

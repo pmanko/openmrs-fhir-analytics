@@ -59,15 +59,13 @@ services:
       dockerfile: ./streaming-atomfeed/Dockerfile
     healthcheck:
       test: "exit 0"
-    depends_on:
-      - streaming-atomfeed-db
     environment:
       - SOURCE_URL=https://isanteplusdemo.com/openmrs
       - SOURCE_FEED_ENDPOINT=/ws/atomfeed
       - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
       - SOURCE_PW=Admin123
       - SOURCE_USERNAME=admin
-      - SINK_URL=http://18.158.139.243:8092/hapi-fhir-jpaserver/fhir
+      - SINK_URL=http://18.158.139.243:5001/SHR/fhir
 
   streaming-atomfeed-db:
     container_name: streaming-atomfeed-db
