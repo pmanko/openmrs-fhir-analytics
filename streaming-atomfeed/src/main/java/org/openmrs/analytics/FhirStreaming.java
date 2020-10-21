@@ -41,11 +41,11 @@ public class FhirStreaming {
 	private static String sourceUser;
 	
 	private static String sinkUrl;
-
+	
 	private static String sinkUser;
-
+	
 	private static String sinkPassword;
-
+	
 	public static void main(String[] args) throws InterruptedException, URISyntaxException {
 		if (args.length == 4) {
 			sourceUrl = args[0];
@@ -87,13 +87,13 @@ public class FhirStreaming {
 		if (GcpStoreUtil.matchesGcpPattern(sinkUrl))
 			fhirStoreUtil = new GcpStoreUtil(sinkUrl, fhirContext);
 		else {
-			if(!sourceUser.isEmpty() && !sourcePassword.isEmpty()) {
+			if (!sourceUser.isEmpty() && !sourcePassword.isEmpty()) {
 				fhirStoreUtil = new FhirStoreUtil(sinkUrl, sourceUser, sourcePassword, fhirContext);
 			} else {
 				fhirStoreUtil = new FhirStoreUtil(sinkUrl, fhirContext);
 			}
 		}
-
+		
 		FeedConsumer feedConsumer = new FeedConsumer(feedUrl, fhirStoreUtil, openmrsUtil);
 		
 		while (true) {

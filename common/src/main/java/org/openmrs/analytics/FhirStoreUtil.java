@@ -19,19 +19,20 @@ public class FhirStoreUtil {
 	protected FhirContext fhirContext;
 	
 	protected String sinkUrl;
-
+	
 	protected String sinkUser;
-
+	
 	protected String sinkPassword;
-
+	
 	// BasicAuth
-	public FhirStoreUtil(String sinkUrl, String sinkUser, String sinkPassword, FhirContext fhirContext) throws IllegalArgumentException {
+	public FhirStoreUtil(String sinkUrl, String sinkUser, String sinkPassword, FhirContext fhirContext)
+	        throws IllegalArgumentException {
 		this.sinkUser = sinkUser;
 		this.sinkPassword = sinkPassword;
 		this.fhirContext = fhirContext;
 		this.sinkUrl = sinkUrl;
 	}
-
+	
 	public FhirStoreUtil(String sinkUrl, FhirContext fhirContext) {
 		this.fhirContext = fhirContext;
 		this.sinkUrl = sinkUrl;
@@ -40,7 +41,7 @@ public class FhirStoreUtil {
 	public void uploadResourceToCloud(Resource resource) {
 		try {
 			IClientInterceptor authInterceptor = new BasicAuthInterceptor(this.sinkUser, this.sinkPassword);
-		
+			
 			updateFhirResource(sinkUrl, resource, Collections.<IClientInterceptor> singleton(authInterceptor));
 		}
 		catch (Exception e) {
@@ -49,7 +50,7 @@ public class FhirStoreUtil {
 	}
 	
 	protected void updateFhirResource(String sinkUrl, Resource resource, Collection<IClientInterceptor> interceptors) {
-		fhirContext.getRestfulClientFactory().setSocketTimeout(200 * 1000);		
+		fhirContext.getRestfulClientFactory().setSocketTimeout(200 * 1000);
 		IGenericClient client = fhirContext.newRestfulGenericClient(sinkUrl);
 		
 		for (IClientInterceptor interceptor : interceptors) {
