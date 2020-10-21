@@ -85,3 +85,4 @@ nb-configuration.xml
 /offset.dat
 /dbhistory.dat
 
+hibernate.default.properties
