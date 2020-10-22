@@ -41,7 +41,7 @@ public class FeedConsumer {
 		categories.put("Observation", Observation.class);
 		categories.put("Location", Location.class);
 		categories.put("Allergy", AllergyIntolerance.class);
-
+		
 		// TODO add other FHIR resources that are implemented in OpenMRS.
 		for (Map.Entry<String, Class> entry : categories.entrySet()) {
 			FhirEventWorker eventWorker = new FhirEventWorker(fhirStoreUtil, openmrsUtil);

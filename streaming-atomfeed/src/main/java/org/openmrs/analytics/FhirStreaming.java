@@ -87,8 +87,8 @@ public class FhirStreaming {
 		if (GcpStoreUtil.matchesGcpPattern(sinkUrl))
 			fhirStoreUtil = new GcpStoreUtil(sinkUrl, fhirContext);
 		else {
-			if (!sourceUser.isEmpty() && !sourcePassword.isEmpty()) {
-				fhirStoreUtil = new FhirStoreUtil(sinkUrl, sourceUser, sourcePassword, fhirContext);
+			if (!sinkUser.isEmpty() && !sinkPassword.isEmpty()) {
+				fhirStoreUtil = new FhirStoreUtil(sinkUrl, sinkUser, sinkPassword, fhirContext);
 			} else {
 				fhirStoreUtil = new FhirStoreUtil(sinkUrl, fhirContext);
 			}
