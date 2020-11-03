@@ -111,7 +111,7 @@ public class FhirConverter implements Processor {
 				log.error(String.format("Cannot create ParquetWriter Exception: %s", e));
 			}
 		} else {
-			fhirStoreUtil.uploadResourceToCloud(resource);
+			fhirStoreUtil.uploadResource(resource);
 		}
 	}
 	
