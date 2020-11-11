@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: '2.1'
+version: '2.4'
 services:
   sink-server:
-    image: "hapiproject/hapi:latest"
+    image: "hapiproject/hapi:v5.1.0"
     container_name: sink-server
     restart: unless-stopped
     ports:

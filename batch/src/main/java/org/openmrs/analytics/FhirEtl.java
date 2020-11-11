@@ -63,7 +63,6 @@ public class FhirEtl {
 		void setServerUrl(String value);
 		
 		@Description("OpenMRS server fhir endpoint")
-		@Required
 		@Default.String("/ws/fhir2/R3")
 		String getServerFhirEndpoint();
 		
@@ -91,30 +90,29 @@ public class FhirEtl {
 		
 		@Description("Openmrs BasicAuth Password")
 		@Default.String("Admin123")
-		@Required
 		String getPassword();
 		
 		void setPassword(String value);
 		
-		@Description("The target fhir store OR GCP FHIR store with the format: "
-		        + "`projects/[\\w-]+/locations/[\\w-]+/datasets/[\\w-]+/fhirStores/[\\w-]+`, e.g., "
-		        + "`projects/my-project/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test`")
 		// TODO set the default value of this to empty string once FhirSearchUtil is refactored and GCP
 		// specific parts are taken out. Then add the support for having both FHIR store and Parquet
 		// output enabled at the same time.
-		@Default.String("projects/P/locations/L/datasets/D/fhirStores/F")
+		@Description("The path to the target generic fhir store, or a GCP fhir store with the format: "
+		        + "`projects/[\\w-]+/locations/[\\w-]+/datasets/[\\w-]+/fhirStores/[\\w-]+`, e.g., "
+		        + "`projects/my-project/locations/us-central1/datasets/openmrs_fhir_test/fhirStores/test`")
+		@Required
 		String getSinkPath();
 		
 		void setSinkPath(String value);
 		
 		@Description("Sink BasicAuth Username")
-		@Default.String("hapi")
+		@Default.String("")
 		String getSinkUsername();
 		
 		void setSinkUsername(String value);
 		
 		@Description("Sink BasicAuth Password")
-		@Default.String("hapi")
+		@Default.String("")
 		String getSinkPassword();
 		
 		void setSinkPassword(String value);
@@ -149,14 +147,15 @@ public class FhirEtl {
 				log.error("Cannot fetch resources for " + searchUrl);
 				throw new IllegalStateException("Cannot fetch resources for " + searchUrl);
 			}
-			int total = searchBundle.getTotal();
+			int total = 9; //searchBundle.getTotal();
 			log.info(String.format("Number of resources for %s search is %d", search, total));
 			if (searchBundle.getEntry().size() >= total) {
 				// No parallelism is needed in this case; we get all resources in one bundle.
 				segments.add(SearchSegmentDescriptor.create(searchUrl, options.getBatchSize()));
 			} else {
 				for (int offset = 0; offset < total; offset += options.getBatchSize()) {
-					String pageSearchUrl = fhirSearchUtil.findBaseSearchUrl(searchBundle) + "&_getpagesoffset=" + offset;
+					String pageSearchUrl = fhirSearchUtil.findBaseSearchUrl(searchBundle) + "&_getpagesoffset=" + offset
+					        + "&_summary=false";
 					segments.add(SearchSegmentDescriptor.create(pageSearchUrl, options.getBatchSize()));
 				}
 				log.info(String.format("Total number of segments for search %s is %d", search, segments.size()));

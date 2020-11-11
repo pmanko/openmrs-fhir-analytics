@@ -19,15 +19,14 @@ services:
     build:
       context: batch
     image: openmrs-fhir-analytics/batch-job:latest
-    #restart: "always"
     network_mode: host
     container_name: batch-cloud
     healthcheck:
       test: "exit 0"
     environment:
-     - SINK_PATH=http://localhost:8098/hapi-fhir-jpaserver/fhir
-     - SOURCE_URL=http://localhost:8099/openmrs
-     - SEARCH_LIST=Patient,Encounter,Observation
+     - SINK_PATH=http://localhost:8098/fhir
+     - SOURCE_URL=https://isanteplusdemo.com/openmrs
+     - SEARCH_LIST=Patient
      - BATCH_SIZE=20
      - TARGET_PARALLELISM=20
 
@@ -47,8 +46,8 @@ services:
       - JAVA_OPTIONS=-Ddatabase.hostname=localhost -Ddatabase.port=3306 -Ddatabase.user=root -Ddatabase.password=debezium
                      -Ddatabase.dbname=mysql -Ddatabase.schema=openmrs -Ddatabase.serverId=77 -Ddatabase.offsetStorage=/tmp/offset.dat
                      -Ddatabase.databaseHistory=/tmp/dbhistory.dat -Dopenmrs.username=admin -Dopenmrs.password=Admin123
-                     -Dopenmrs.serverUrl=http://localhost:8099 -Dopenmrs.fhirBaseEndpoint=/openmrs/ws/fhir2/R3
-                     -Dfhir.sinkPath=projects/PROJECT/locations/LOCATION/datasets/DATASET/fhirStores/FHIRSTORENAME
+                     -Dopenmrs.serverUrl=https://isanteplusdemo.com -Dopenmrs.fhirBaseEndpoint=/openmrs/ws/fhir2/R3
+                     -Dfhir.sinkPath=http://localhost:8098/fhir
                      -Dfile.parquetPath=/tmp/
                      -Dfhir.debeziumEventConfigPath=dbz_event_to_fhir_config.json
 

@@ -264,20 +264,14 @@ $ docker-compose -f openmrs-compose.yaml up # change ports appropriately (option
 ```
  You should be able to access OpenMRS via  http://localhost:8099/openmrs/ using refApp credentials i.e username is admin and password Admin123
  Please remember to install OpenMRS demo data module!
- 
- #### 2. Extract JSESSION_ID by authenticate against your OpenMRS instance using
 
-```
-$ curl -u <username>:<password> http://<server name>/openmrs/ws/rest/v1/session 
-```
-
-#### 3. Configure ./docker-compose.yaml
+#### 2. Configure ./docker-compose.yaml
 
 Parameters (e.g port/url ) have been configured to point to http://localhost:8099/openmrs/ 
 
-Remember to appropriately change other parameters such as JSESSION_ID (extracted in step #2 above), GCP and OpenMRS host.
+Remember to appropriately change other parameters such as source url, sink path, and any required authentication information.
 
-#### 4. Fire up Batch Pipeline
+#### 3. Fire up Batch Pipeline
 
 ```
 $ mvn clean install

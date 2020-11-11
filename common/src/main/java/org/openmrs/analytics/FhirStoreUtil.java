@@ -69,7 +69,7 @@ public class FhirStoreUtil {
 	public MethodOutcome uploadResource(Resource resource) {
 		Collection<IClientInterceptor> interceptors = Collections.<IClientInterceptor> emptyList();
 		
-		if (sinkUsername.isEmpty() && !sinkPassword.isEmpty()) {
+		if (!sinkUsername.isEmpty() && !sinkPassword.isEmpty()) {
 			interceptors = Collections.<IClientInterceptor> singleton(new BasicAuthInterceptor(sinkUsername, sinkPassword));
 		}
 		
@@ -107,6 +107,9 @@ public class FhirStoreUtil {
 		interceptor.addHeaderValue("Content-Type", "application/fhir+json");
 		
 		client.registerInterceptor(interceptor);
+		
+		// TODO: determine if summary mode is the right approach
+		resource.getMeta().setTag(Collections.EMPTY_LIST);
 		
 		// Initialize the client, which will be used to interact with the service.
 		MethodOutcome outcome = client.create().resource(resource).encodedJson().execute();
