@@ -18,10 +18,10 @@ ARG WORK_DIR="/usr/src/Main"
 COPY target/fhir-batch-etl-bundled-0.1.0-SNAPSHOT.jar ${WORK_DIR}/app.jar
 WORKDIR ${WORK_DIR}
 
-ENV SINK_PATH="http://docker.host.internal:8098/fhir"
+ENV SINK_PATH="http://18.158.139.243:8098/hapi-fhir-jpaserver/fhir"
 ENV SINK_USERNAME=""
 ENV SINK_PASSWORD=""
-ENV SERVER_URL="https://isanteplusdemo.com/openmrs"
+ENV SERVER_URL="http://18.158.139.243:8091/openmrs"
 ENV SEARCH_LIST="Patient"
 ENV BATCH_SIZE=10
 ENV TARGET_PARALLELISM=10

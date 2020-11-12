@@ -69,7 +69,7 @@ public class FhirStoreUtil {
 	public MethodOutcome uploadResource(Resource resource) {
 		Collection<IClientInterceptor> interceptors = Collections.<IClientInterceptor> emptyList();
 		
-		if (!sinkUsername.isEmpty() && !sinkPassword.isEmpty()) {
+		if (sinkUsername != null && !sinkUsername.isEmpty() && sinkPassword != null && !sinkPassword.isEmpty()) {
 			interceptors = Collections.<IClientInterceptor> singleton(new BasicAuthInterceptor(sinkUsername, sinkPassword));
 		}
 		

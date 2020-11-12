@@ -24,8 +24,8 @@ services:
     healthcheck:
       test: "exit 0"
     environment:
-     - SINK_PATH=http://localhost:8098/fhir
-     - SOURCE_URL=https://isanteplusdemo.com/openmrs
+     - SINK_PATH=http://18.158.139.243:8098/hapi-fhir-jpaserver/fhir
+     - SOURCE_URL=https://18.158.139.243:8091/openmrs
      - SEARCH_LIST=Patient
      - BATCH_SIZE=20
      - TARGET_PARALLELISM=20
