@@ -55,3 +55,16 @@ services:
       MODULE_WEB_ADMIN: 'true'
       _JAVA_OPTIONS: -Xmx1g -Xms1g # change this depending on the server config
 
+  test-hapi:
+    image: "hapiproject/hapi:latest"
+    container_name: test-hapi
+    restart: unless-stopped
+    volumes:
+      - hapi-data:/data/hapi
+      - ./utils/hapi.properties:/conf/hapi/hapi.properties
+    environment:
+      JAVA_OPTS: '-Dhapi.properties=/conf/hapi/hapi.properties'
+    ports:
+      - "8098:8080"
+volumes:
+  hapi-data:

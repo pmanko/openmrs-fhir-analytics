@@ -56,7 +56,7 @@ services:
     hostname: streaming-atomfeed
     build:
       context: ./
-      dockerfile: ./streaming-atomfeed/Dockerfile
+      dockerfile: ./streaming-atomfeed/org.Dockerfile
     healthcheck:
       test: "exit 0"
     environment:
@@ -65,10 +65,34 @@ services:
       - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
       - SOURCE_PW=Admin123
       - SOURCE_USERNAME=admin
-      - SINK_USER=shr
-      - SINK_PASSWORD=shr123
-      - SINK_URL=http://18.158.139.243:5001/SHR/fhir
-
+      - SINK_USERNAME=shr
+      - SINK_PASSWORD=shr
+      - SINK_URL=http://sedish-haiti.org:5001/SHR/fhir
+    restart: unless-stopped
+  streaming-atomfeed-ii:
+    container_name: streaming-atomfeed-ii
+    hostname: streaming-atomfeed-ii
+    build:
+      context: ./
+      dockerfile: ./streaming-atomfeed/org.Dockerfile
+      args:
+        USERNAME: ${RELEASE_USERNAME}
+        TOKEN: ${RELEASE_TOKEN}
+    healthcheck:
+      test: "exit 0"
+    environment:
+      - SOURCE_URL=https://isanteplus-test.sedish-haiti.org/openmrs
+      - SOURCE_FEED_ENDPOINT=/ws/atomfeed
+      - SOURCE_FHIR_ENDPOINT=/ws/fhir2/R4
+      - SOURCE_PW=Admin123
+      - SOURCE_USERNAME=admin
+      - SINK_USERNAME=shr
+      - SINK_PASSWORD=shr
+      - SINK_URL=http://sedish-haiti.org:5001/SHR/fhir
+    restart: unless-stopped
+    networks: 
+      - sedish
+    
   streaming-atomfeed-db:
     container_name: streaming-atomfeed-db
     hostname: streaming-atomfeed-db
@@ -90,3 +114,7 @@ services:
 volumes:
   m2repo:
   db:
+networks:
+  sedish:
+    external: true
+    name: shared-health-record_sedish
