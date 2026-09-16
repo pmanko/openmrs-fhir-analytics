@@ -26,25 +26,44 @@ COPY ./bunsen ./bunsen
 COPY ./pipelines ./pipelines
 COPY ./pom.xml ./pom.xml
 COPY ./utils ./utils
+COPY ./coverage ./coverage
+COPY ./doc/pom.xml ./doc/pom.xml
+COPY ./docker/pom.xml ./docker/pom.xml
+COPY ./dwh/pom.xml ./dwh/pom.xml
+COPY ./e2e-tests/pom.xml ./e2e-tests/pom.xml
+COPY ./query/pom.xml ./query/pom.xml
+COPY ./synthea-hiv/pom.xml ./synthea-hiv/pom.xml
 
 # Updating license will fail in e2e and there is no point doing it here anyways.
 # Note this build can be faster by excluding some uber-jars we don't copy.
-RUN mvn --batch-mode clean package -Dlicense.skip=true
+RUN mvn --no-transfer-progress --batch-mode clean package -Dlicense.skip=true -Dmaven.javadoc.skip=true -Dmaven.source.skip=true -Dspotless.apply.skip=true -T 2C
 
 FROM eclipse-temurin:17-jdk-focal as main
 
+RUN apt-get update && apt-get install -y libjemalloc-dev
+
+# Install Python and pip and clean up apt cache
+RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-COPY --from=build \
-  /app/pipelines/controller/target/controller-0.1.0-SNAPSHOT-exec.jar \
-  ./controller.jar
+COPY --from=build /app/pipelines/controller/target/controller-bundled.jar .
+
+COPY --from=build /app/pipelines/controller-cli ./controller-cli
+
+WORKDIR ./controller-cli
+
+# Install the controller-cli script
+RUN pip3 install .
+
+WORKDIR /app
 
 COPY ./docker/config ./config
 
-# Flink will read the flink-conf.yaml file from this directory.
+# Flink will read the flink-conf.yaml file from this directory if the auto generation of flink
+# configuration is disabled
 ENV FLINK_CONF_DIR=/app/config
 
-# The -Xmx value is to make sure there is a minimum amount of memory; it can be
-# increased if more memory is avaialble and is desired to be used by pipelines.
-# Note this is retald to memory config in the above flink-conf.yaml too.
-ENTRYPOINT java -Xms6g -Xmx6g -jar /app/controller.jar
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]

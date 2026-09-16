@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2020-2023 Google LLC
+    Copyright 2020-2026 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.openmrs.analytics</groupId>
+    <groupId>com.google.fhir.analytics</groupId>
     <artifactId>pipelines</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.7-SNAPSHOT</version>
   </parent>
 
   <artifactId>controller</artifactId>
@@ -30,7 +30,8 @@
 
   <properties>
     <java.version>17</java.version>
-    <spring-boot.version>3.1.0</spring-boot.version>
+    <spring-boot.version>3.5.7</spring-boot.version>
+    <okhttp.version>5.4.0</okhttp.version>
   </properties>
 
   <dependencyManagement>
@@ -77,6 +78,28 @@
       <artifactId>spring-boot-starter-thymeleaf</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient</artifactId>
+      <version>0.16.0</version>
+    </dependency>
+
+    <!-- This is to make it easier to hot-swap static content, i.e., to make
+     testing static content changes in a running server easier. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Pipeline dependencies for execution and monitoring -->
     <dependency>
       <groupId>${project.parent.groupId}</groupId>
@@ -94,6 +117,11 @@
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-jdbc</artifactId>
       <version>3.1.3</version>
+      <!-- We cannot switch to newer versions yet as they are not stable, e.g.,
+        4.0.0-beta-1 gives a NoClassDefFoundError on some Thrift classes;
+        or 4.0.0-alpha-2 fails to connect to the thrift server.
+        Because of this issue we exclude `log4j:log4j` and pin a newer version.
+        We also need to exclude `htrace-core` (see below). -->
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -106,6 +134,30 @@
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-slf4j-impl</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <!-- The reason for this exclusion is that this is a very old release
+           which depends on `com.fasterxml.jackson.core:jackson-databind:2.4.0`
+           which has the CVE-2020-24750 vulnerability. Simple exclusion of this
+           is not the "right" approach but is working for our use-case. A new
+           release of `hive-jdbc` (which depends on `hive-*` libraries) can
+           resolve many of these issues as 3.1.3 is too old. -->
+        <exclusion>
+          <groupId>org.apache.htrace</groupId>
+          <artifactId>htrace-core</artifactId>
+        </exclusion>
+        <!-- Similar as above! -->
+        <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
+          <artifactId>jackson-mapper-asl</artifactId>
+        </exclusion>
+        <!-- Similar as above! -->
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty</artifactId>
         </exclusion>
         <exclusion>
           <groupId>javax.servlet.jsp</groupId>
@@ -132,19 +184,36 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- This ensures that the version of okhttp is pinned to this version overriding all transitive dependencies -->
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>${okhttp.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>mockwebserver</artifactId>
+      <version>${okhttp.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- This will make sure that the Junit 4 test cases will also be run along with Junit 5 test
+    cases-->
+    <dependency>
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
+    <finalName>${project.artifactId}-bundled</finalName>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-        <!-- The version specification should not be needed but on Cloud-Build
-          for some reason it picks 3.0.0 and then fails as it needs Java 17. -->
-        <!-- This is for being able to debug from IDE. -->
-        <configuration>
-          <fork>false</fork>
-        </configuration>
+        <version>${spring-boot.version}</version>
+        <!-- The "fork" configuration parameter was removed in Spring Boot 3;
+           we need another way to be able to debug from IDE. -->
         <executions>
           <execution>
             <!-- This creates the standalone fat-jar with "-exec" suffix.  -->
@@ -152,12 +221,37 @@
             <goals>
               <goal>repackage</goal>
             </goals>
-            <configuration>
-              <classifier>exec</classifier>
-            </configuration>
           </execution>
         </executions>
 
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <archive>
+                <manifestEntries>
+                  <!-- These options enable access to all methods in the mentioned packages at
+                  compile and runtime. These are added as MANIFEST entries in the bundled jar. These
+                  had to be enabled specifically for accessing the
+                  `jdk.internal.misc.VM.maxDirectMemory()` API
+                  TODO find an easy way to add these for IDE debugging too;
+                   currently we need to comment out the corresponding part.
+                  -->
+                  <Add-Exports>java.base/jdk.internal.misc</Add-Exports>
+                  <Add-Opens>java.base/jdk.internal.misc=ALL-UNNAMED</Add-Opens>
+                </manifestEntries>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

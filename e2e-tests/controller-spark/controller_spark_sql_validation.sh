@@ -20,6 +20,11 @@
 
 set -e
 
+# -------------------------------------------------------------------
+# Shared helper for robust Parquet row-count with retry/back-off
+# -------------------------------------------------------------------
+source "$(dirname "$0")/../lib/parquet_utils.sh"
+
 #################################################
 # Prints the usage
 #################################################
@@ -29,8 +34,7 @@ function usage() {
   echo
   echo " usage: ./controller_spark_sql_validation.sh  HOME_DIR  PARQUET_SUBDIR  [OPTIONS] "
   echo "    HOME_DIR          Path where e2e-tests/controller-spark directory is. Directory MUST"
-  echo "                      contain the parquet tools jar as well as subdirectory"
-  echo "                      of parquet file output"
+  echo "                      contain subdirectory of parquet file output"
   echo "    PARQUET_SUBDIR    Subdirectory name under HOME_DIR containing"
   echo "                      parquet files  "
   echo
@@ -48,15 +52,6 @@ function validate_args() {
     usage
     exit 1
   fi
-
-  echo "Checking if the Parquet-tools JAR exists..."
-  if [[ -n $(find "${1}" -name parquet-tools*.jar) ]]; then
-    echo "Parquet-tools JAR exists in ${1}"
-  else
-    echo "Parquet-tools JAR not found in ${1}"
-    usage
-    exit 1
-  fi
 }
 
 #################################################
@@ -65,7 +60,13 @@ function validate_args() {
 #   anything that needs printing
 #################################################
 function print_message() {
-  local print_prefix="E2E TEST FOR CONTROLLER SPARK DEPLOYMENT:"
+  local print_prefix=""
+  if [[ "${DWH_TYPE}" == "PARQUET" ]]
+  then
+    print_prefix="E2E TEST FOR CONTROLLER PARQUET BASED DEPLOYMENT:"
+  else
+    print_prefix="E2E TEST FOR CONTROLLER FHIR SERVER TO FHIR SERVER SYNC:"
+  fi
   echo "${print_prefix} $*"
 }
 
@@ -75,11 +76,12 @@ function print_message() {
 #   HOME_PATH
 #   PARQUET_SUBDIR
 #   SOURCE_FHIR_SERVER_URL
+#   SINK_FHIR_SERVER_URL
 #   PIPELINE_CONTROLLER_URL
 #   THRIFTSERVER_URL
 # Arguments:
-#   Path where e2e-tests/controller-spark directory is. Directory contains parquet tools jar as
-#      well as subdirectory of parquet file output
+#   Path where e2e-tests/controller-spark directory is. Directory contains
+#      subdirectory of parquet file output
 #   Subdirectory name under HOME_DIR containing parquet files.
 #      Example: dwh
 #   Optional: Flag to specify whether to use docker or host network URLs.
@@ -87,14 +89,56 @@ function print_message() {
 function setup() {
   HOME_PATH=$1
   PARQUET_SUBDIR=$2
+  DWH_TYPE=$4
   SOURCE_FHIR_SERVER_URL='http://localhost:8091'
+  SINK_FHIR_SERVER_URL='http://localhost:8098'
   PIPELINE_CONTROLLER_URL='http://localhost:8090'
   THRIFTSERVER_URL='localhost:10001'
   if [[ $3 = "--use_docker_network" ]]; then
     SOURCE_FHIR_SERVER_URL='http://hapi-server:8080'
+    SINK_FHIR_SERVER_URL='http://sink-server-controller:8080'
     PIPELINE_CONTROLLER_URL='http://pipeline-controller:8080'
     THRIFTSERVER_URL='spark:10000'
   fi
+}
+
+#######################################################################
+# This function queries fhir server and writes results to json files.
+# Globals:
+#   HOME_PATH
+#   PARQUET_SUBDIR
+# Arguments:
+#  server_url: url of the source fhir server.
+#  patient_json_file : file to write Patient results
+#  encounter_json_file : file to write Encounter results
+#  obs_json_file : file to write Observation results
+#######################################################################
+function query_fhir_server(){
+  local query_param="?_summary=count"
+  local server_url=$1
+  local patient_json_file=$2
+  local encounter_json_file=$3
+  local obs_json_file=$4
+
+  print_message "Finding number of patients, encounters and obs in FHIR server ${server_url}"
+
+  curl -L -X GET -u hapi:hapi --connect-timeout 5 --header 'Cache-Control: no-cache' --max-time 20 "${server_url}/fhir/Patient${query_param}"
+
+  curl -L -X GET -u hapi:hapi --connect-timeout 5 --header 'Cache-Control: no-cache' --max-time 20 \
+  "${server_url}/fhir/Patient${query_param}" 2>/dev/null \
+  >"${HOME_PATH}/${PARQUET_SUBDIR}/${patient_json_file}"
+
+  print_message "Write Patients into File"
+
+  curl -L -X GET -u hapi:hapi --connect-timeout 5 --header 'Cache-Control: no-cache' --max-time 20 \
+  "${server_url}/fhir/Encounter${query_param}" 2>/dev/null \
+  >"${HOME_PATH}/${PARQUET_SUBDIR}/${encounter_json_file}"
+
+  curl -L -X GET -u hapi:hapi --connect-timeout 5 --header 'Cache-Control: no-cache' --max-time 20 \
+  "${server_url}/fhir/Observation${query_param}" 2>/dev/null\
+  >"${HOME_PATH}/${PARQUET_SUBDIR}/${obs_json_file}"
+
+  print_message "Write Observation into File"
 }
 
 #################################################
@@ -108,26 +152,15 @@ function setup() {
 #   TOTAL_TEST_OBS
 #################################################
 function fhir_source_query() {
-  local query_param="?_summary=count"
-  local fhir_username="hapi"
-  local fhir_password="hapi"
-  local fhir_url_extension="/fhir"
 
-  curl -L -X GET -u $fhir_username:$fhir_password --connect-timeout 5 --max-time 20 \
-  "${SOURCE_FHIR_SERVER_URL}${fhir_url_extension}/Patient${query_param}" 2>/dev/null \
-  >"${HOME_PATH}/${PARQUET_SUBDIR}/patients.json"
+  query_fhir_server "${SOURCE_FHIR_SERVER_URL}"  "patients.json" "encounters.json" "obs.json"
+  print_message "Before count"
   TOTAL_TEST_PATIENTS=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/patients.json")
   print_message "Total FHIR source test patients ---> ${TOTAL_TEST_PATIENTS}"
 
-  curl -L -X GET -u $fhir_username:$fhir_password --connect-timeout 5 --max-time 20 \
-    "${SOURCE_FHIR_SERVER_URL}${fhir_url_extension}/Encounter${query_param}" \
-    2>/dev/null >"${HOME_PATH}/${PARQUET_SUBDIR}/encounters.json"
   TOTAL_TEST_ENCOUNTERS=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/encounters.json")
   print_message "Total FHIR source test encounters ---> ${TOTAL_TEST_ENCOUNTERS}"
 
-  curl -L -X GET -u $fhir_username:$fhir_password --connect-timeout 5 --max-time 20 \
-    "${SOURCE_FHIR_SERVER_URL}${fhir_url_extension}/Observation${query_param}" \
-    2>/dev/null >"${HOME_PATH}/${PARQUET_SUBDIR}/obs.json"
   TOTAL_TEST_OBS=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/obs.json")
   print_message "Total FHIR source test obs ---> ${TOTAL_TEST_OBS}"
 }
@@ -137,14 +170,43 @@ function fhir_source_query() {
 # Globals:
 #   PIPELINE_CONTROLLER_URL
 # Arguments:
-#   isFullRun: flag to indicate whether to start full or incremental run.
+#   runMode: flag to indicate whether to start full or incremental or recreate
+#     runs; should be one of "FULL", "INCREMENTAL", "VIEWS".
 #######################################################################
 function run_pipeline() {
-  local isFullRun=$1
-  curl --location --request POST "${PIPELINE_CONTROLLER_URL}/run?isFullRun=${isFullRun}" \
-  --connect-timeout 5 \
-  --header 'Content-Type: application/json' \
-  --header 'Accept: */*'
+  local runMode=$1
+  controller "${PIPELINE_CONTROLLER_URL}" run --mode "${runMode}"
+}
+
+function wait_for_completion() {
+  local runtime_minutes=25
+  local runtime_seconds=$((runtime_minutes * 60))
+  local start_time=$(date +%s)
+  local end_time=$((start_time + runtime_seconds))
+
+  while [[ $(date +%s) -le ${end_time} ]]
+  do
+    # Here we extract only the JSON part of the output from controller 'status'
+    # command as there could be some logging info printed before the JSON output.
+    # We use 'sed' to get the lines between the first '{' and the last '}' and
+    # then pipe it to jq for parsing.
+    local controller_output=$(controller "${PIPELINE_CONTROLLER_URL}" status)
+    print_message "Controller output: ${controller_output}"
+
+    local json_extracted=$(echo "${controller_output}" | sed -n '/^{$/,/^}$/ {;p;/^}$/ {;n;p;};}')
+    print_message "Extracted JSON: ${json_extracted}"
+
+    local pipeline_status=$(echo "${json_extracted}" | jq -r '.pipelineStatus // "UNKNOWN"')
+    print_message "Pipeline status: ${pipeline_status}"
+
+    if [[ "${pipeline_status}" == "RUNNING" ]]
+    then
+      sleep 5
+    else
+      print_message "wait_for_completion LOOP ending with STATUS=${pipeline_status}"
+      break
+    fi
+  done
 }
 
 #######################################################################
@@ -162,50 +224,85 @@ function run_pipeline() {
 #######################################################################
 function check_parquet() {
   local isIncremental=$1
-  local runtime="5 minute"
-  local end_time=$(date -ud "$runtime" +%s)
   local output="${HOME_PATH}/${PARQUET_SUBDIR}"
-  local timeout=true
+  TOTAL_VIEW_PATIENTS=528
 
   if [[ "${isIncremental}" == "true" ]]
   then
-    # In case of incremental run, we will have two directories
-    # assuming batch run was executed before this.
+    # In case of incremental run, we will have two directories (because a batch
+    # run was executed first); one directory is for the first batch run and
+    # the second is for the merge step of the incremental run. The second
+    # directory has one more patient, hence the new totals.
     TOTAL_TEST_PATIENTS=$((2*TOTAL_TEST_PATIENTS + 1))
+    TOTAL_VIEW_PATIENTS=1060
     TOTAL_TEST_ENCOUNTERS=$((2*TOTAL_TEST_ENCOUNTERS))
     TOTAL_TEST_OBS=$((2*TOTAL_TEST_OBS))
   fi
 
-  while [[ $(date -u +%s) -le $end_time ]]
-  do
-    # check whether output directory has started receiving parquet files.
-    if [[ "$(ls -A $output)" ]]
-    then
-      local total_patients=$(java -jar ./parquet-tools-1.11.1.jar rowcount "${output}/*/Patient/" | awk '{print $3}')
-      local total_encounters=$(java -jar ./parquet-tools-1.11.1.jar rowcount "${output}/*/Encounter/" \
-       | awk '{print $3}')
-      local total_observations=$(java -jar ./parquet-tools-1.11.1.jar rowcount "${output}/*/Observation/" \
-       | awk '{print $3}')
-
-      print_message "Total patients: $total_patients"
-      print_message "Total encounters: $total_encounters"
-      print_message "Total observations: $total_observations"
-
-      if [[ "${total_patients}" == "${TOTAL_TEST_PATIENTS}" && "${total_encounters}" \
-              == "${TOTAL_TEST_ENCOUNTERS}" && "${total_observations}" == "${TOTAL_TEST_OBS}" ]] \
-          ; then
-          print_message "Pipeline transformation successfully completed."
-          timeout=false
-          break
-      else
-          sleep 10
-      fi
-    fi
-  done
-
-  if [[ "${timeout}" == "true" ]]
+  # check whether output directory has received parquet files.
+  if [[ "$(ls -A "${output}")" ]]
   then
-    print_message "Could not validate parquet files."
+    # ------------------------------------------------------------------
+    # Row-counts with retry (shared helper)
+    # ------------------------------------------------------------------
+    local total_patients
+    total_patients=$(retry_rowcount \
+      "${output}/*/Patient/" \
+      "${TOTAL_TEST_PATIENTS}") || true
+
+    local total_encounters
+    total_encounters=$(retry_rowcount \
+      "${output}/*/Encounter/" \
+      "${TOTAL_TEST_ENCOUNTERS}") || true
+
+    local total_observations
+    total_observations=$(retry_rowcount \
+      "${output}/*/Observation/" \
+      "${TOTAL_TEST_OBS}") || true
+
+    local total_patient_flat
+    total_patient_flat=$(retry_rowcount \
+      "${output}/*/VIEWS_TIMESTAMP_*/patient_flat/" \
+      "${TOTAL_VIEW_PATIENTS}") || true
+
+    local total_encounter_flat
+    total_encounter_flat=$(retry_rowcount \
+      "${output}/*/VIEWS_TIMESTAMP_*/encounter_flat/" \
+      "${TOTAL_TEST_ENCOUNTERS}") || true
+
+    local total_obs_flat
+    total_obs_flat=$(retry_rowcount \
+      "${output}/*/VIEWS_TIMESTAMP_*/observation_flat/" \
+      "${TOTAL_TEST_OBS}") || true
+    # ------------------------------------------------------------------
+
+    print_message "Total patients: ${total_patients}"
+    print_message "Total encounters: ${total_encounters}"
+    print_message "Total observations: ${total_observations}"
+
+    print_message "Total patient flat rows: ${total_patient_flat}"
+    print_message "Total encounter flat rows: ${total_encounter_flat}"
+    print_message "Total observation flat rows: ${total_obs_flat}"
+
+    if (( total_patients == TOTAL_TEST_PATIENTS \
+            && total_encounters == TOTAL_TEST_ENCOUNTERS && \
+            total_observations == TOTAL_TEST_OBS \
+            && total_obs_flat == TOTAL_TEST_OBS && \
+            total_patient_flat == TOTAL_VIEW_PATIENTS && \
+            total_encounter_flat == TOTAL_TEST_ENCOUNTERS )); then
+            print_message "Pipeline transformation successfully completed."
+    else
+            print_message "Mismatch in count of records"
+            print_message "Actual total patients: ${total_patients}, expected total: ${TOTAL_TEST_PATIENTS}"
+            print_message "Actual total encounters: ${total_encounters}, expected total: ${TOTAL_TEST_ENCOUNTERS}"
+            print_message "Total observations: ${total_observations}, expected total: ${TOTAL_TEST_OBS}"
+            print_message "Actual total materialized view patients: ${total_patient_flat}, expected total: ${TOTAL_VIEW_PATIENTS}"
+            print_message "Actual total materialized view encounters: ${total_encounter_flat}, expected total: ${TOTAL_TEST_ENCOUNTERS}"
+            print_message "Actual total materialized view observations: ${total_obs_flat}, expected total: ${TOTAL_TEST_OBS}"
+            exit 2
+    fi
+  else
+    print_message "No parquet files available."
     exit 2
   fi
 }
@@ -217,7 +314,7 @@ function check_parquet() {
 #   PARQUET_SUBDIR
 #######################################################################
 function clear() {
-  rm -rf $HOME_PATH/$PARQUET_SUBDIR/*.json
+  rm -rf "${HOME_PATH}/${PARQUET_SUBDIR}"/*.json
 }
 
 #######################################################################
@@ -273,8 +370,10 @@ function validate_resource_tables() {
   --outputformat=csv2 >>hive_resource_tables.csv
 
   # Check for snapshot tables.
-  if [[ $(grep patient_ hive_resource_tables.csv) && $(grep encounter_ hive_resource_tables.csv) \
-      && $(grep observation_ hive_resource_tables.csv) ]]
+  if [[ $(grep patient_ hive_resource_tables.csv) \
+      && $(grep encounter_ hive_resource_tables.csv) \
+      && $(grep observation_ hive_resource_tables.csv) \
+      && $(grep patient_flat_ hive_resource_tables.csv) ]]
   then
     print_message "Snapshot tables creation verified successfully."
   else
@@ -283,8 +382,10 @@ function validate_resource_tables() {
   fi
 
   # Check for canonical tables.
-  if [[ $(grep -w patient hive_resource_tables.csv) && $(grep -w encounter hive_resource_tables.csv) \
-      && $(grep -w observation hive_resource_tables.csv) ]]
+  if [[ $(grep -w patient hive_resource_tables.csv) \
+      && $(grep -w encounter hive_resource_tables.csv) \
+      && $(grep -w observation hive_resource_tables.csv) \
+      && $(grep -w patient_flat hive_resource_tables.csv) ]]
   then
     print_message "Canonical tables creation verified successfully."
   else
@@ -343,25 +444,98 @@ function validate_updated_resource() {
   fi
 }
 
+
+function validate_updated_resource_in_fhir_sink() {
+  local fhir_username="hapi"
+  local fhir_password="hapi"
+  local fhir_url_extension="/fhir"
+
+  # Fetch the patient resource using the Patient ID
+  local updated_family_name=$(curl -X GET -H "Content-Type: application/json; charset=utf-8" -u $fhir_username:$fhir_password \
+  --connect-timeout 5 --max-time 20 "${SINK_FHIR_SERVER_URL}${fhir_url_extension}/Patient/${PATIENT_ID}" \
+  | jq -r '.name[0].family')
+
+  if [[ "${updated_family_name}" == "Anderson" ]]
+  then
+    print_message "Updated Patient data for ${PATIENT_ID} in FHIR sink verified successfully."
+  else
+    print_message "Updated Patient data verification for ${PATIENT_ID} in FHIR sink failed."
+    exit 6
+  fi
+}
+
+
+#################################################
+# Function that counts resources in  FHIR server and compares output to what is
+#  in the source FHIR server
+# Globals:
+#   HOME_PATH
+#   PARQUET_SUBDIR
+#   SINK_FHIR_SERVER_URL
+#   TOTAL_TEST_PATIENTS
+#   TOTAL_TEST_ENCOUNTERS
+#   TOTAL_TEST_OBS
+#################################################
+function test_fhir_sink(){
+  local runMode=$1
+
+  query_fhir_server "${SINK_FHIR_SERVER_URL}"  "patients-sink.json" "encounters-sink.json" "obs-sink.json"
+
+  print_message "Counting number of patients, encounters and obs sinked to fhir files"
+
+  local total_patients_sinked_fhir=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/patients-sink.json")
+  print_message "Total patients sinked to fhir ---> ${total_patients_sinked_fhir}"
+
+  local total_encounters_sinked_fhir=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/encounters-sink.json")
+  print_message "Total encounters sinked to fhir ---> ${total_encounters_sinked_fhir}"
+
+  local total_obs_sinked_fhir=$(jq '.total' "${HOME_PATH}/${PARQUET_SUBDIR}/obs-sink.json")
+  print_message "Total observations sinked to fhir ---> ${total_obs_sinked_fhir}"
+
+  if [[ "${total_patients_sinked_fhir}" == "${TOTAL_TEST_PATIENTS}" && "${total_encounters_sinked_fhir}" \
+      == "${TOTAL_TEST_ENCOUNTERS}" && "${total_obs_sinked_fhir}" == "${TOTAL_TEST_OBS}" ]] \
+  ; then
+  print_message "FHIR SERVER SINK EXECUTED SUCCESSFULLY USING ${runMode} MODE"
+  else
+  print_message "FHIR SERVER SINK TEST FAILED USING ${runMode} MODE"
+  exit 1
+  fi
+}
+
 validate_args  "$@"
 setup "$@"
-print_message "---- STARTING TEST ----"
 fhir_source_query
-sleep 5
-run_pipeline true
-check_parquet false
+sleep 30
+# Full run.
+run_pipeline "FULL"
+wait_for_completion
+if [[ "${DWH_TYPE}" == "PARQUET" ]]
+then
+  check_parquet false
+else
+  test_fhir_sink "FULL"
+fi
 
 clear
 
 add_resource
 update_resource
-sleep 10
 # Incremental run.
-run_pipeline false
-check_parquet true
-
-validate_resource_tables
-validate_resource_tables_data
-validate_updated_resource
+run_pipeline "INCREMENTAL"
+wait_for_completion
+if [[ "${DWH_TYPE}" == "PARQUET" ]]
+then
+  check_parquet true
+  validate_resource_tables
+  validate_resource_tables_data
+  validate_updated_resource
+  # View recreation run
+  # TODO add validation for the views as well
+  run_pipeline "VIEWS"
+else
+  fhir_source_query
+  test_fhir_sink "INCREMENTAL"
+  validate_updated_resource_in_fhir_sink
+fi
 
 print_message "END!!"

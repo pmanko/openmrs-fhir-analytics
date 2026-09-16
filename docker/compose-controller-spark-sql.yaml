@@ -71,6 +71,8 @@ services:
     volumes:
       - ${PIPELINE_CONFIG}:/app/config:ro
       - ${DWH_ROOT}:/dwh
+    environment:
+      - JAVA_OPTS=$JAVA_OPTS
     ports:
       - '8090:8080'
     networks:
@@ -81,7 +83,7 @@ services:
         condition: service_healthy
 
   spark-master:
-    image: docker.io/bitnami/spark:3.3
+    image: docker.io/bitnamilegacy/spark:4.0.0
     container_name: spark-master
     environment:
       - SPARK_MODE=master
@@ -111,7 +113,7 @@ services:
       timeout: 60s
 
   spark-worker:
-    image: docker.io/bitnami/spark:3.3
+    image: docker.io/bitnamilegacy/spark:4.0.0
     container_name: spark-worker
     depends_on:
       spark-master:
@@ -130,7 +132,7 @@ services:
       - default
 
   thriftserver:
-    image: docker.io/bitnami/spark:3.3
+    image: docker.io/bitnamilegacy/spark:4.0.0
     container_name: spark-thriftserver
     depends_on:
       spark-master:

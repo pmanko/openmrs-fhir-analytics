@@ -54,10 +54,21 @@ services:
     # to force a build use `--build` option of `docker-compose up`.
     build:
       context: ..
+    # To use a released image instead, replace the above two lines with this:
+    # image: us-docker.pkg.dev/cloud-build-fhir/fhir-analytics/main:latest
     container_name: pipeline-controller
     volumes:
       - ${PIPELINE_CONFIG}:/app/config:ro
       - ${DWH_ROOT}:/dwh
+    environment:
+      - JAVA_OPTS=$JAVA_OPTS
+      # This is to override the values in the default config.
+      - FHIRDATA_SINKFHIRSERVERURL=${FHIRDATA_SINKFHIRSERVERURL:-}
+      - FHIRDATA_GENERATEPARQUETFILES=${FHIRDATA_GENERATEPARQUETFILES:-true}
+      - FHIRDATA_CREATEHIVERESOURCETABLES=${FHIRDATA_CREATEHIVERESOURCETABLES:-true}
+      - FHIRDATA_CREATEPARQUETVIEWS=${FHIRDATA_CREATEPARQUETVIEWS:-true}
+      - FHIRDATA_SINKDBCONFIGPATH=${FHIRDATA_SINKDBCONFIGPATH:-config/hapi-postgres-config_local_views.json}
+      - FHIRDATA_NUMTHREADS=${FHIRDATA_NUMTHREADS:--1}
     ports:
       - '8090:8080'
     networks:
@@ -68,7 +79,7 @@ services:
         condition: service_healthy
 
   spark:
-    image: docker.io/bitnami/spark:3.3
+    image: docker.io/bitnamilegacy/spark:4.0.0
     container_name: spark-thriftserver
     command:
       - sbin/start-thriftserver.sh

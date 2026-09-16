@@ -1,0 +1,75 @@
+/*
+ * Copyright 2020-2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.google.fhir.analytics;
+
+import ca.uhn.fhir.rest.api.SummaryEnum;
+import com.cerner.bunsen.exception.ProfileException;
+import com.google.common.base.Preconditions;
+import com.google.fhir.analytics.view.ViewApplicationException;
+import java.io.IOException;
+import java.sql.SQLException;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.hl7.fhir.r4.model.Bundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class FetchPatients extends PTransform<PCollection<KV<String, Integer>>, PDone> {
+
+  private static final Logger log = LoggerFactory.getLogger(FetchPatientHistory.class);
+
+  private static final String PATIENT = "Patient";
+
+  private final FetchSearchPageFn<KV<String, Integer>> fetchSearchPageFn;
+
+  FetchPatients(FhirEtlOptions options) {
+    Preconditions.checkState(!options.getActivePeriod().isEmpty());
+
+    int count = options.getBatchSize();
+    fetchSearchPageFn =
+        new FetchSearchPageFn<KV<String, Integer>>(options, "PatientById") {
+
+          @Override
+          public void finishBundle(FinishBundleContext context) {
+            super.finishBundle(context);
+          }
+
+          @ProcessElement
+          public void processElement(@Element KV<String, Integer> patientIdCount)
+              throws IOException, SQLException, ViewApplicationException, ProfileException {
+            String patientId = patientIdCount.getKey();
+            log.info(
+                String.format(
+                    "Already fetched %d resources for patient %s",
+                    patientIdCount.getValue(), patientId));
+            // TODO use FetchUtil.fetchResource() instead of search and process bundle.
+            Bundle bundle =
+                this.fhirSearchUtil.searchByUrl(
+                    PATIENT + "?_id=" + patientId, count, SummaryEnum.DATA);
+            processBundle(bundle);
+          }
+        };
+  }
+
+  @Override
+  public PDone expand(PCollection<KV<String, Integer>> patientIdCounts) {
+    patientIdCounts.apply(ParDo.of(fetchSearchPageFn));
+    return PDone.in(patientIdCounts.getPipeline());
+  }
+}

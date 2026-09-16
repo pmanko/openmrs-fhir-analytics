@@ -4,9 +4,13 @@ import ca.uhn.fhir.context.BaseRuntimeChildDefinition;
 import ca.uhn.fhir.context.BaseRuntimeElementCompositeDefinition;
 import ca.uhn.fhir.context.BaseRuntimeElementDefinition;
 import ca.uhn.fhir.context.RuntimeCompositeDatatypeDefinition;
+import com.cerner.bunsen.exception.ProfileException;
+import com.google.common.base.Strings;
+import java.util.Objects;
 import org.hl7.fhir.instance.model.api.IBase;
 import org.hl7.fhir.instance.model.api.IBaseDatatype;
 import org.hl7.fhir.instance.model.api.IBaseExtension;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Converter implementation for extension leaf primitives.
@@ -21,7 +25,8 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
 
     private final BaseRuntimeElementCompositeDefinition elementDefinition;
 
-    LeafExensionFieldSetter(BaseRuntimeElementCompositeDefinition elementDefinition,
+    LeafExensionFieldSetter(
+        BaseRuntimeElementCompositeDefinition elementDefinition,
         HapiObjectConverter valuetoHapiConverter) {
 
       this.elementDefinition = elementDefinition;
@@ -29,9 +34,8 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
     }
 
     @Override
-    public void setField(IBase parentObject,
-        BaseRuntimeChildDefinition fieldToSet,
-        Object sparkObject) {
+    public void setField(
+        IBase parentObject, BaseRuntimeChildDefinition fieldToSet, Object sparkObject) {
 
       IBase hapiObject = valuetoHapiConverter.toHapi(sparkObject);
 
@@ -61,7 +65,6 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
     }
   }
 
-
   private final String extensionUrl;
 
   private final HapiConverter<T> valueConverter;
@@ -77,6 +80,7 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
     this.valueConverter = valueConverter;
   }
 
+  @Nullable
   @Override
   public Object fromHapi(Object input) {
 
@@ -97,8 +101,8 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
 
   private BaseRuntimeElementDefinition fetchElementDefinitionForField(
       String valueField, RuntimeCompositeDatatypeDefinition definition) {
-    BaseRuntimeElementDefinition valueDefinition = definition.getChildByName(valueField)
-        .getChildByName(valueField);
+    BaseRuntimeElementDefinition valueDefinition =
+        definition.getChildByName(valueField).getChildByName(valueField);
     return valueDefinition;
   }
 
@@ -130,5 +134,23 @@ public class LeafExtensionConverter<T> extends HapiConverter<T> {
     HapiObjectConverter sparkToHapi =
         (HapiObjectConverter) valueConverter.toHapiConverter(valueDefinition);
     return new LeafExensionFieldSetter(definition, sparkToHapi);
+  }
+
+  @Override
+  public HapiConverter<T> merge(HapiConverter<T> other) throws ProfileException {
+    HapiConverterUtil.validateIfImplementationClassesAreSame(this, other);
+    if (Strings.isNullOrEmpty(this.extensionUrl())
+        || Strings.isNullOrEmpty(other.extensionUrl())
+        || !Objects.equals(this.extensionUrl(), other.extensionUrl())) {
+      throw new ProfileException(
+          String.format(
+              "Extension urls must not be empty and should be the same for merging,"
+                  + " currentExtensionUrl=%s, otherExtensionUrl=%s",
+              this.extensionUrl(), other.extensionUrl()));
+    }
+
+    HapiConverter mergedValueConverter =
+        this.valueConverter.merge(((LeafExtensionConverter) other).valueConverter);
+    return new LeafExtensionConverter(this.extensionUrl, mergedValueConverter);
   }
 }

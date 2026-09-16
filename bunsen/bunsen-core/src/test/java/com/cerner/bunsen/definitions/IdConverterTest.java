@@ -18,12 +18,12 @@ public class IdConverterTest {
 
   @Test
   public void relativePathTest() {
-    assertThat(idConverter.fromHapi(new IdType("Patinet/123")), equalTo("123"));
+    assertThat(idConverter.fromHapi(new IdType("Patient/123")), equalTo("123"));
   }
 
   @Test
   public void absoluteUrlTest() {
-    assertThat(idConverter.fromHapi(new IdType("http://fhir.server/Patinet/123")), equalTo("123"));
+    assertThat(idConverter.fromHapi(new IdType("http://fhir.server/Patient/123")), equalTo("123"));
   }
 
   @Test
@@ -33,8 +33,5 @@ public class IdConverterTest {
 
   // In real scenarios this would be the specific type to/from which the HAPI conversion happens,
   // e.g., an Avro Schema when the conversion is to/from Avro records.
-  private static class ArbitraryDataType {
-
-  }
-
+  private static class ArbitraryDataType {}
 }

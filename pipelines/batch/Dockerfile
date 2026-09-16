@@ -25,7 +25,7 @@ FROM eclipse-temurin:17-jdk-focal
 # FROM eclipse-temurin:11-jdk-focal
 
 ARG WORK_DIR="/usr/src/Main"
-COPY target/batch-bundled-0.1.0-SNAPSHOT.jar ${WORK_DIR}/app.jar
+COPY target/batch-bundled.jar ${WORK_DIR}/app.jar
 WORKDIR ${WORK_DIR}
 
 ENV FHIR_SERVER_URL="http://openmrs:8080/openmrs/ws/fhir2/R4"
@@ -35,7 +35,7 @@ ENV SINK_PATH=""
 ENV SINK_USERNAME=""
 ENV SINK_PASSWORD=""
 ENV RESOURCE_LIST="Patient,Encounter,Observation"
-ENV BATCH_SIZE=10
+ENV BATCH_SIZE=100
 ENV TARGET_PARALLELISM=10
 ENV PARQUET_PATH="/tmp/"
 ENV JDBC_MODE_ENABLED=false
@@ -46,6 +46,10 @@ ENV NUM_FILE_SHARDS=3
 ENV FHIR_DATABASE_CONFIG_PATH="/workspace/utils/hapi-postgres-config.json"
 ENV JDBC_MODE_HAPI=false
 ENV RUNNER="DirectRunner"
+ENV FHIR_FETCH_MODE="FHIR_SEARCH"
+ENV VIEW_DEFINITIONS_DIR="/workspace/docker/config/views/"
+# This is to simulate a real controller scenario (this is assumed in e2e-tests).
+ENV OUTPUT_PARQUET_VIEW_PATH="/tmp/VIEWS_TIMESTAMP_1/"
 
 
 ENTRYPOINT java -jar /usr/src/Main/app.jar  \
@@ -55,4 +59,7 @@ ENTRYPOINT java -jar /usr/src/Main/app.jar  \
            --outputParquetPath=${PARQUET_PATH} --jdbcModeEnabled=${JDBC_MODE_ENABLED} \
            --jdbcMaxPoolSize=${JDBC_MAX_POOL_SIZE} \
            --fhirDatabaseConfigPath=${FHIR_DATABASE_CONFIG_PATH} --jdbcInitialPoolSize=${JDBC_INITIAL_POOL_SIZE} \
-           --jdbcFetchSize=${JDBC_FETCH_SIZE} --jdbcModeHapi=${JDBC_MODE_HAPI} --runner=${RUNNER}
+           --jdbcFetchSize=${JDBC_FETCH_SIZE} --jdbcModeHapi=${JDBC_MODE_HAPI} --runner=${RUNNER} \
+           --fhirFetchMode=${FHIR_FETCH_MODE} \
+           --viewDefinitionsDir=${VIEW_DEFINITIONS_DIR} \
+           --outputParquetViewPath=${OUTPUT_PARQUET_VIEW_PATH}

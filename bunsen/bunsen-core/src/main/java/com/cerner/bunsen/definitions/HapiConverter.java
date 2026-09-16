@@ -2,17 +2,17 @@ package com.cerner.bunsen.definitions;
 
 import ca.uhn.fhir.context.BaseRuntimeChildDefinition;
 import ca.uhn.fhir.context.BaseRuntimeElementDefinition;
+import com.cerner.bunsen.exception.ProfileException;
 import org.hl7.fhir.instance.model.api.IBase;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Base class for converting HAPI resources to an alternative object model,
- * such as Spark rows or Avro objects.
+ * Base class for converting HAPI resources to an alternative object model, such as Spark rows or
+ * Avro objects.
  */
 public abstract class HapiConverter<T> {
 
-  /**
-   * Supporting interface to convert and set a field on a HAPI object.
-   */
+  /** Supporting interface to convert and set a field on a HAPI object. */
   public interface HapiFieldSetter {
 
     /**
@@ -22,18 +22,15 @@ public abstract class HapiConverter<T> {
      * @param fieldToSet the runtime definition of the field to set.
      * @param value the value to be converted and set on the FHIR object.
      */
-    void setField(IBase parentObject,
-        BaseRuntimeChildDefinition fieldToSet,
-        Object value);
+    void setField(IBase parentObject, BaseRuntimeChildDefinition fieldToSet, Object value);
   }
 
   /**
-   * Supporting interface to convert an object from a different data model
-   * to a HAPI object. This interface is separated because not all
-   * HAPI objects can be created with a simple function. In some cases
-   * additional context is needed, such as the HAPI parent object which defines
-   * the enumerated values in a given field. This is why this interface is
-   * separate from the {@link HapiFieldSetter} interface.
+   * Supporting interface to convert an object from a different data model to a HAPI object. This
+   * interface is separated because not all HAPI objects can be created with a simple function. In
+   * some cases additional context is needed, such as the HAPI parent object which defines the
+   * enumerated values in a given field. This is why this interface is separate from the {@link
+   * HapiFieldSetter} interface.
    */
   public interface HapiObjectConverter {
 
@@ -43,7 +40,7 @@ public abstract class HapiConverter<T> {
      * @param input the object to convert
      * @return the HAPI equivalent.
      */
-    IBase toHapi(Object input);
+    @Nullable IBase toHapi(Object input);
   }
 
   /**
@@ -55,12 +52,12 @@ public abstract class HapiConverter<T> {
   }
 
   /**
-   * Converts a HAPI object or list of objects to the equivalent
-   * in the alternative data model.
+   * Converts a HAPI object or list of objects to the equivalent in the alternative data model.
    *
    * @param input a HAPI object.
    * @return the data model-specific equivalent.
    */
+  @Nullable
   public abstract Object fromHapi(Object input);
 
   /**
@@ -75,28 +72,40 @@ public abstract class HapiConverter<T> {
    *
    * @return extension URL if the field is an extension, null otherwise.
    */
+  @Nullable
   public String extensionUrl() {
     return null;
   }
 
   /**
-   * The FHIR type of the element to be converted, or null
-   * if there is no FHIR type, such as within a FHIR backbone element.
+   * The FHIR type of the element to be converted, or null if there is no FHIR type, such as within
+   * a FHIR backbone element. The return value should be a valid FHIR type.
    *
    * @return FHIR type of the element to be converted.
    */
+  @Nullable
   public String getElementType() {
     return null;
   }
 
   /**
-   * Returns a field setter to be used when converting an object of an
-   * alternative model to HAPI. Choice types may have multiple element
-   * definitions, but in the common case there will be only one.
+   * Returns a field setter to be used when converting an object of an alternative model to HAPI.
+   * Choice types may have multiple element definitions, but in the common case there will be only
+   * one.
    *
    * @param elementDefinitions the set of element definitions that the element can be.
    * @return the field setter.
    */
   public abstract HapiFieldSetter toHapiConverter(
       BaseRuntimeElementDefinition... elementDefinitions);
+
+  /**
+   * Merges the elements of the other converter with the current converter and returns the merged
+   * converter, merging happens even for the nested child fields.
+   *
+   * @param other the HapiConverter to be merged
+   * @return the merged HapiConverter
+   * @throws ProfileException if merging fails
+   */
+  public abstract HapiConverter<T> merge(HapiConverter<T> other) throws ProfileException;
 }

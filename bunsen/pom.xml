@@ -2,6 +2,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>com.google.fhir.analytics</groupId>
+    <artifactId>root</artifactId>
+    <version>0.2.7-SNAPSHOT</version>
+  </parent>
+
   <groupId>com.cerner.bunsen</groupId>
   <artifactId>bunsen-parent</artifactId>
   <packaging>pom</packaging>
@@ -18,27 +24,27 @@
   </licenses>
 
   <properties>
-
     <compile.source>11</compile.source>
-
-    <hapi.fhir.version>6.4.4</hapi.fhir.version>
-    <avro.version>1.11.1</avro.version>
+    <hapi.fhir.version>7.6.1</hapi.fhir.version>
+    <avro.version>1.12.1</avro.version>
     <junit.version>4.13.2</junit.version>
-    <hamcrest.version>2.2</hamcrest.version>
+    <hamcrest.version>3.0</hamcrest.version>
     <scm.url>http://github.com/cerner/bunsen/tree/master/</scm.url>
     <scm.connection>scm:git:git@github.com/cerner/bunsen.git</scm.connection>
     <python.version>3.5.3</python.version>
-    <maven-javadoc.plugin.version>3.5.0</maven-javadoc.plugin.version>
-    <maven-project-info-reports.plugin.version>3.4.3</maven-project-info-reports.plugin.version>
-    <slf4j.version>1.7.36</slf4j.version>
-    <logback.version>1.4.7</logback.version>
+    <maven-javadoc.plugin.version>3.12.0</maven-javadoc.plugin.version>
+    <maven-project-info-reports.plugin.version>3.9.0</maven-project-info-reports.plugin.version>
+    <slf4j.version>2.0.19</slf4j.version>
+    <logback.version>1.6.0</logback.version>
+    <nullaway.annotatedPackages>com.cerner.bunsen</nullaway.annotatedPackages>
+    <jupiter.version>6.1.2</jupiter.version>
   </properties>
 
   <modules>
+    <module>extension-structure-definitions</module>
     <module>bunsen-core</module>
     <module>bunsen-core-r4</module>
     <module>bunsen-core-stu3</module>
-    <module>bunsen-uscore-resources</module>
     <module>bunsen-avro</module>
   </modules>
 
@@ -77,6 +83,27 @@
         not imposed on the end-user of the Bunsen libraries.-->
       <scope>test</scope>
     </dependency>
+
+    <!-- This is to override the old Jackson dependency that Avro has; without
+      this the libraries that depend on newer Jackson throw NoClassDefFound.
+      TODO remove this dependency once Avro is upgraded. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>2.22.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
+      <version>4.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jspecify</groupId>
+      <artifactId>jspecify</artifactId>
+      <version>1.0.0</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -112,7 +139,10 @@
         <configuration>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
-          <release>${compile.source}</release>
+
+          <source>${compile.source}</source>
+          <target>${compile.source}</target>
+          <fork>true</fork>
         </configuration>
       </plugin>
 
@@ -162,45 +192,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <executions>
-          <execution>
-
-            <id>verify_checkstyleReport</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>checkstyle</goal>
-            </goals>
-            <configuration>
-              <configLocation>google_checks.xml</configLocation>
-              <consoleOutput>false</consoleOutput>
-              <enableRulesSummary>true</enableRulesSummary>
-              <enableFilesSummary>true</enableFilesSummary>
-              <includeTestSourceDirectory>true</includeTestSourceDirectory>
-              <linkXRef>true</linkXRef>
-            </configuration>
-          </execution>
-          <execution>
-
-            <id>verify_checkstyleCheck</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <configuration>
-              <configLocation>google_checks.xml</configLocation>
-              <consoleOutput>true</consoleOutput>
-              <failOnViolation>true</failOnViolation>
-              <includeTestSourceDirectory>true</includeTestSourceDirectory>
-              <violationSeverity>warning</violationSeverity>
-              <maxAllowedViolations>0</maxAllowedViolations>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
     </plugins>
 
     <pluginManagement>
@@ -208,35 +199,35 @@
 
         <plugin>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>3.5.0</version>
         </plugin>
 
         <plugin>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.4.0</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.5.1</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.11.0</version>
+          <version>3.15.0</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.6.2</version>
         </plugin>
 
         <plugin>
           <artifactId>maven-release-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.3.1</version>
           <configuration>
               <tagNameFormat>@{project.version}</tagNameFormat>
           </configuration>
@@ -245,7 +236,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.12.0</version>
         </plugin>
 
         <plugin>
@@ -294,19 +285,19 @@
 
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.6.0</version>
+          <version>3.11.0</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-scm-plugin</artifactId>
-          <version>2.0.1</version>
+          <version>2.2.1</version>
         </plugin>
 
         <plugin>
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
-          <version>4.8.1</version>
+          <version>4.9.10</version>
           <executions>
             <execution>
               <id>scala-compile-first</id>
@@ -326,35 +317,16 @@
           </executions>
         </plugin>
 
-        <plugin> <!-- Upgrading Checkstyle at Runtime -->
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.3.0</version>
-          <dependencies>
-            <dependency>
-              <groupId>com.puppycrawl.tools</groupId>
-              <artifactId>checkstyle</artifactId>
-              <!-- Dependabot bumps this version which throws bunch of issues in which case
-                   revert to 8.29 -->
-              <version>8.29</version>
-            </dependency>
-          </dependencies>
-          <configuration>
-            <configLocation>/google_checks.xml</configLocation>
-            <enableFilesSummary>true</enableFilesSummary>
-          </configuration>
-        </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.5.6</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-report-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.6.0</version>
         </plugin>
 
         <plugin>
@@ -366,7 +338,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-gpg-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.2.8</version>
           <executions>
             <execution>
               <id>sign-artifacts</id>
@@ -381,7 +353,7 @@
         <plugin>
           <groupId>org.sonatype.plugins</groupId>
           <artifactId>nexus-staging-maven-plugin</artifactId>
-          <version>1.6.13</version>
+          <version>1.7.0</version>
           <extensions>true</extensions>
           <configuration>
             <serverId>ossrh</serverId>
@@ -390,26 +362,6 @@
           </configuration>
         </plugin>
 
-        <plugin>
-          <!-- This is added for Codecov. -->
-          <groupId>org.jacoco</groupId>
-          <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.10</version>
-          <executions>
-            <execution>
-              <goals>
-                <goal>prepare-agent</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>report</id>
-              <goals>
-                <goal>report</goal>
-              </goals>
-              <phase>prepare-package</phase>
-            </execution>
-          </executions>
-        </plugin>
       </plugins>
 
     </pluginManagement>
@@ -417,20 +369,6 @@
 
   <reporting>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <configLocation>google_checks.xml</configLocation>
-        </configuration>
-        <reportSets>
-          <reportSet>
-            <reports>
-              <report>checkstyle</report>
-            </reports>
-          </reportSet>
-        </reportSets>
-      </plugin>
 
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -512,6 +450,12 @@
       <!-- Project libraries -->
       <dependency>
         <groupId>com.cerner.bunsen</groupId>
+        <artifactId>extension-structure-definitions</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.cerner.bunsen</groupId>
         <artifactId>bunsen-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -557,19 +501,6 @@
       <dependency>
         <groupId>com.cerner.bunsen</groupId>
         <artifactId>bunsen-spark-stu3</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.cerner.bunsen</groupId>
-        <artifactId>bunsen-uscore-resources</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.cerner.bunsen</groupId>
-        <artifactId>bunsen-uscore-resources</artifactId>
-        <type>test-jar</type>
         <version>${project.version}</version>
       </dependency>
 
@@ -673,7 +604,7 @@
       <dependency>
         <groupId> org.apache.hadoop</groupId>
         <artifactId>hadoop-client</artifactId>
-        <version>3.3.5</version>
+        <version>3.5.0</version>
       </dependency>
 
     </dependencies>
@@ -711,7 +642,7 @@
           <plugin>
             <groupId>org.sonatype.plugins</groupId>
             <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.13</version>
+            <version>1.7.0</version>
             <extensions>true</extensions>
             <configuration>
               <serverId>ossrh</serverId>
@@ -722,7 +653,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
             <executions>
               <execution>
                 <id>attach-sources</id>
@@ -748,7 +679,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
-            <version>3.1.0</version>
+            <version>3.2.8</version>
             <executions>
               <execution>
                 <id>sign-artifacts</id>

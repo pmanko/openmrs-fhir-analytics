@@ -1,16 +1,20 @@
 package com.cerner.bunsen.r4;
 
 import com.google.common.collect.ImmutableList;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import org.hl7.fhir.r4.model.Address;
 import org.hl7.fhir.r4.model.BooleanType;
-import org.hl7.fhir.r4.model.CodeType;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.Condition;
 import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.DateType;
 import org.hl7.fhir.r4.model.Dosage;
+import org.hl7.fhir.r4.model.Encounter;
+import org.hl7.fhir.r4.model.Encounter.EncounterParticipantComponent;
+import org.hl7.fhir.r4.model.Encounter.EncounterStatus;
 import org.hl7.fhir.r4.model.Enumerations.AdministrativeGender;
 import org.hl7.fhir.r4.model.Extension;
 import org.hl7.fhir.r4.model.HumanName;
@@ -25,32 +29,41 @@ import org.hl7.fhir.r4.model.Narrative;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Observation.ObservationComponentComponent;
 import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Period;
 import org.hl7.fhir.r4.model.Provenance;
 import org.hl7.fhir.r4.model.Quantity;
+import org.hl7.fhir.r4.model.QuestionnaireResponse;
+import org.hl7.fhir.r4.model.QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent;
+import org.hl7.fhir.r4.model.QuestionnaireResponse.QuestionnaireResponseItemComponent;
+import org.hl7.fhir.r4.model.QuestionnaireResponse.QuestionnaireResponseStatus;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.StringType;
+import org.hl7.fhir.r4.model.Task;
 import org.hl7.fhir.r4.model.Timing;
 import org.hl7.fhir.r4.model.Timing.TimingRepeatComponent;
 import org.hl7.fhir.utilities.xhtml.NodeType;
 import org.hl7.fhir.utilities.xhtml.XhtmlNode;
 
-
-/**
- * Common test resources for Bunsen R4 usage.
- */
+/** Common test resources for Bunsen R4 usage. */
 public class TestData {
 
-  public static final String US_CORE_BIRTHSEX
-      = "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex";
+  public static final String US_CORE_BIRTHSEX =
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex";
 
-  public static final String US_CORE_ETHNICITY
-      = "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity";
+  public static final String US_CORE_ETHNICITY =
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity";
 
   public static final String US_CORE_PATIENT =
       "http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient";
 
-  public static final String US_CORE_OBSERVATION =
-      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-observationresults";
+  public static final String US_CORE_OBSERVATION_VITALS_SIGNS =
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-vital-signs";
+
+  public static final String US_CORE_CONDITION_PROBLEMS_HEALTH_CONCERNS =
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition-problems-health-concerns";
+
+  public static final String US_CORE_ENCOUNTER =
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter";
 
   public static final String US_CORE_CONDITION =
       "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition";
@@ -61,37 +74,34 @@ public class TestData {
   public static final String US_CORE_MEDICATION_REQUEST =
       "http://hl7.org/fhir/us/core/StructureDefinition/us-core-medicationrequest";
 
-  public static final String PROVENANCE =
-      "http://hl7.org/fhir/StructureDefinition/Provenance";
+  public static final String PROVENANCE = "http://hl7.org/fhir/StructureDefinition/Provenance";
 
-  public static final String VALUE_SET =
-      "http://hl7.org/fhir/StructureDefinition/ValueSet";
+  public static final String VALUE_SET = "http://hl7.org/fhir/StructureDefinition/ValueSet";
 
-  // TODO add test profile for R4: https://github.com/google/fhir-data-pipes/issues/558
-  // public static final String BUNSEN_TEST_PATIENT =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-patient";
+  public static final String BUNSEN_TEST_PATIENT =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-patient";
 
-  // public static final String BUNSEN_TEST_BOOLEAN_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-booleanfield";
+  public static final String BUNSEN_TEST_BOOLEAN_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-booleanfield";
 
-  // public static final String BUNSEN_TEST_INTEGER_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-integerfield";
+  public static final String BUNSEN_TEST_INTEGER_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-integerfield";
 
-  // public static final String BUNSEN_TEST_INTEGER_ARRAY_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-integerArrayField";
+  public static final String BUNSEN_TEST_INTEGER_ARRAY_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-integerArrayField";
 
-  // public static final String BUNSEN_TEST_NESTED_EXT_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-nested-extension";
+  public static final String BUNSEN_TEST_NESTED_EXT_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-nested-extension";
 
-  // public static final String BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-codeableConcept-extension";
+  public static final String BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-codeableConcept-extension";
 
-  // public static final String BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/"
-  //         + "bunsen-test-codeableConcept-modifierExtension";
+  public static final String BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/"
+          + "bunsen-test-codeableConcept-modifierExtension";
 
-  // public static final String BUNSEN_TEST_STRING_MODIFIER_EXT_FIELD =
-  //     "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-string-modifierExtension";
+  public static final String BUNSEN_TEST_STRING_MODIFIER_EXT_FIELD =
+      "http://hl7.org/fhir/bunsen/test/StructureDefinition/bunsen-test-string-modifierExtension";
 
   /**
    * Returns a FHIR Condition for testing purposes.
@@ -122,21 +132,21 @@ public class TestData {
     // TODO
     // condition.setVerificationStatus(Condition.ConditionVerificationStatus.CONFIRMED);
     CodeableConcept verStatus = new CodeableConcept();
-    verStatus.addCoding().setSystem("http://terminology.hl7.org/CodeSystem/condition-ver-status")
-            .setCode("confirmed");
+    verStatus
+        .addCoding()
+        .setSystem("http://terminology.hl7.org/CodeSystem/condition-ver-status")
+        .setCode("confirmed");
     condition.setVerificationStatus(verStatus);
 
     // Condition code
     CodeableConcept code = new CodeableConcept();
-    code.addCoding()
-        .setSystem("http://snomed.info/sct")
-        .setCode("39065001")
-        .setDisplay("Severe");
+    code.addCoding().setSystem("http://snomed.info/sct").setCode("39065001").setDisplay("Severe");
     condition.setSeverity(code);
 
     // Severity code
     CodeableConcept severity = new CodeableConcept();
-    severity.addCoding()
+    severity
+        .addCoding()
         .setSystem("http://snomed.info/sct")
         .setCode("24484000")
         .setDisplay("Burn of ear")
@@ -179,14 +189,30 @@ public class TestData {
 
     ObservationComponentComponent component = observation.addComponent();
 
-    CodeableConcept code = new CodeableConcept()
-        .addCoding(new Coding()
-            .setCode("abc")
-            .setSystem("PLACEHOLDER"));
+    CodeableConcept code =
+        new CodeableConcept().addCoding(new Coding().setCode("abc").setSystem("PLACEHOLDER"));
 
     component.setCode(code);
 
     return observation;
+  }
+
+  public static Task newTask() {
+    Task task = new Task();
+
+    task.setId("my-task");
+
+    CodeableConcept taskCode = new CodeableConcept();
+    taskCode.addCoding().setSystem("test-system");
+
+    Task.ParameterComponent input = task.addInput();
+    input.setType(taskCode);
+    input.setValue(new IntegerType(12));
+    Task.TaskOutputComponent output = task.addOutput();
+    output.setType(taskCode);
+    output.setValue(new IntegerType(13));
+
+    return task;
   }
 
   /**
@@ -198,7 +224,7 @@ public class TestData {
 
     Patient patient = new Patient();
 
-    patient.setId("test-patient");
+    patient.setId("Patient/test-patient");
     patient.setGender(AdministrativeGender.MALE);
     patient.setActive(true);
     patient.setMultipleBirth(new IntegerType(1));
@@ -206,7 +232,6 @@ public class TestData {
     // This is to introduce conflict with managingOrganization identifier
     // and make sure conflict is resolved.
     Identifier patientIdentifier = new Identifier();
-    patientIdentifier.setId("patient123");
     patientIdentifier.getAssigner().setReference("Organization/123");
     patient.setIdentifier(List.of(patientIdentifier));
 
@@ -215,28 +240,27 @@ public class TestData {
     patient.addGeneralPractitioner().setReference("Practitioner/12345");
 
     Identifier practitionerIdentifier = new Identifier();
-    practitionerIdentifier.setId("P123456");
     practitionerIdentifier.getAssigner().setReference("Organization/123456");
     patient.getGeneralPractitionerFirstRep().setIdentifier(practitionerIdentifier);
 
     Identifier managingOrganisationIdentifier = new Identifier();
-    managingOrganisationIdentifier.setId("O123456");
     managingOrganisationIdentifier.getAssigner().setReference("Organization/234");
     patient.getManagingOrganization().setIdentifier(managingOrganisationIdentifier);
 
     Address address = patient.addAddress();
     address.addLine("123 Fake Street");
+    address.setId("address123");
     address.setCity("Chicago");
     address.setState("IL");
     address.setDistrict("12345");
 
-    Extension birthSex = patient.addExtension();
-    birthSex.setUrl(US_CORE_BIRTHSEX);
-    birthSex.setValue(new CodeType("M"));
-
     Extension ethnicity = patient.addExtension();
     ethnicity.setUrl(US_CORE_ETHNICITY);
     ethnicity.setValue(null);
+
+    Extension birthSex = patient.addExtension();
+    birthSex.setUrl(US_CORE_BIRTHSEX);
+    birthSex.setValue(new StringType("M"));
 
     Coding ombCoding = new Coding();
 
@@ -281,7 +305,6 @@ public class TestData {
     humanName.addGiven("middle_name");
     patient.addName(humanName);
 
-
     Meta meta = new Meta();
 
     List<Coding> tag = meta.getTag();
@@ -309,7 +332,8 @@ public class TestData {
     medication.setId(id);
 
     CodeableConcept itemCodeableConcept = new CodeableConcept();
-    itemCodeableConcept.addCoding()
+    itemCodeableConcept
+        .addCoding()
         .setSystem("http://www.nlm.nih.gov/research/umls/rxnorm")
         .setCode("103109")
         .setDisplay("Vitamin E 3 MG Oral Tablet [Ephynal]")
@@ -320,9 +344,8 @@ public class TestData {
 
     medication.addIngredient(ingredientComponent);
 
-    Reference itemReference = new Reference("test-item-reference");
-
     /* TODO update for R4
+    Reference itemReference = new Reference("test-item-reference");
     MedicationPackageContentComponent medicationPackageContentComponent =
         new MedicationPackageContentComponent();
     medicationPackageContentComponent.setItem(itemReference);
@@ -348,7 +371,8 @@ public class TestData {
     medicationRequest.setId("test-medication-request");
 
     CodeableConcept itemCodeableConcept = new CodeableConcept();
-    itemCodeableConcept.addCoding()
+    itemCodeableConcept
+        .addCoding()
         .setSystem("http://www.nlm.nih.gov/research/umls/rxnorm")
         .setCode("103109")
         .setDisplay("Vitamin E 3 MG Oral Tablet [Ephynal]")
@@ -356,16 +380,49 @@ public class TestData {
 
     medicationRequest.setMedication(itemCodeableConcept);
 
-    medicationRequest
-        .setSubject(new Reference("Patient/12345").setDisplay("Here is a display for you."));
+    medicationRequest.setSubject(
+        new Reference("Patient/12345").setDisplay("Here is a display for you."));
 
-    medicationRequest.setDosageInstruction(ImmutableList.of(
-        new Dosage().setTiming(new Timing().setRepeat(new TimingRepeatComponent().setCount(10)))));
+    medicationRequest.setDosageInstruction(
+        ImmutableList.of(
+            new Dosage()
+                .setTiming(new Timing().setRepeat(new TimingRepeatComponent().setCount(10)))));
 
     medicationRequest.setSubstitution(
         new MedicationRequestSubstitutionComponent().setAllowed(new BooleanType(true)));
 
     return medicationRequest;
+  }
+
+  public static Encounter newEncounter() {
+    Encounter encounter = new Encounter();
+    encounter.setId("test-encounter-request-id");
+    encounter.setSubject(
+        new Reference().setReference("Patient/4889").setDisplay("Mr. Alva958 Dickinson688"));
+    encounter.setStatus(EncounterStatus.FINISHED);
+    encounter.setClass_(
+        new Coding().setSystem("http://terminology.hl7.org/CodeSystem/v3-ActCode").setCode("AMB"));
+    encounter.addType(
+        new CodeableConcept()
+            .addCoding(
+                new Coding()
+                    .setCode("410620009")
+                    .setSystem("http://snomed.info/sct")
+                    .setDisplay("Well child visit (procedure)"))
+            .setText("Well child visit (procedure)"));
+    EncounterParticipantComponent participantComponent = new EncounterParticipantComponent();
+    participantComponent
+        .addType(
+            new CodeableConcept()
+                .addCoding(
+                    new Coding()
+                        .setSystem("http://terminology.hl7.org/CodeSystem/v3-ParticipationType")
+                        .setCode("PPRF")
+                        .setDisplay("primary performer"))
+                .setText("primary performer"))
+        .setPeriod(new Period().setStart(Date.from(Instant.now())));
+    encounter.addParticipant(participantComponent);
+    return encounter;
   }
 
   /**
@@ -382,122 +439,146 @@ public class TestData {
     return provenance;
   }
 
-  // TODO add test profile for R4: https://github.com/google/fhir-data-pipes/issues/558
-  // /**
-  //  * Returns a new Patient from Bunsen Test profile for testing.
-  //  *
-  //  * @return a FHIR Patient for testing.
-  //  */
-  // public static Patient newBunsenTestProfilePatient() {
-  //   Patient patient = new Patient();
+  /**
+   * Returns a new QuestionnaireResponse for testing.
+   *
+   * @return a FHIR QuestionnaireResponse for testing.
+   */
+  public static QuestionnaireResponse newQuestionnaireResponse() {
+    QuestionnaireResponse response = new QuestionnaireResponse();
+    response.setId("test-questionnaire-response-id");
+    response.setStatus(QuestionnaireResponseStatus.COMPLETED);
+    response.setSubject(new Reference("Patient/12345").setDisplay("Here is a display for you."));
+    QuestionnaireResponseItemComponent component = new QuestionnaireResponseItemComponent();
+    component.setText("What is your Gender?");
+    QuestionnaireResponseItemAnswerComponent answerComponent =
+        new QuestionnaireResponseItemAnswerComponent();
+    answerComponent.setValue(new StringType("Male"));
+    component.addAnswer(answerComponent);
+    response.addItem(component);
+    return response;
+  }
 
-  //   patient.setId("test-bunsen-test-profile-patient");
-  //   patient.setGender(AdministrativeGender.MALE);
-  //   patient.setActive(true);
-  //   patient.setMultipleBirth(new IntegerType(1));
+  /**
+   * Returns a new Patient from Bunsen Test profile for testing.
+   *
+   * @return a FHIR Patient for testing.
+   */
+  public static Patient newBunsenTestProfilePatient() {
+    Patient patient = new Patient();
 
-  //   patient.setBirthDateElement(new DateType("1945-01-01"));
+    patient.setId("test-bunsen-test-profile-patient");
+    patient.setGender(AdministrativeGender.MALE);
+    patient.setActive(true);
+    patient.setMultipleBirth(new IntegerType(1));
 
-  //   // set extension field
-  //   Extension booleanField = patient.addExtension();
-  //   booleanField.setUrl(BUNSEN_TEST_BOOLEAN_FIELD);
-  //   booleanField.setValue(new BooleanType(true));
+    patient.setBirthDateElement(new DateType("1945-01-01"));
 
-  //   Extension integerField = patient.addExtension();
-  //   integerField.setUrl(BUNSEN_TEST_INTEGER_FIELD);
-  //   integerField.setValue(new IntegerType(45678));
+    // set extension field
+    Extension booleanField = patient.addExtension();
+    booleanField.setUrl(BUNSEN_TEST_BOOLEAN_FIELD);
+    booleanField.setValue(new BooleanType(true));
 
-  //   Extension integerArrayField1 = patient.addExtension();
-  //   integerArrayField1.setUrl(BUNSEN_TEST_INTEGER_ARRAY_FIELD);
-  //   integerArrayField1.setValue(new IntegerType(6666));
+    Extension integerField = patient.addExtension();
+    integerField.setUrl(BUNSEN_TEST_INTEGER_FIELD);
+    integerField.setValue(new IntegerType(45678));
 
-  //   Extension integerArrayField2 = patient.addExtension();
-  //   integerArrayField2.setUrl(BUNSEN_TEST_INTEGER_ARRAY_FIELD);
-  //   integerArrayField2.setValue(new IntegerType(9999));
+    Extension integerArrayField1 = patient.addExtension();
+    integerArrayField1.setUrl(BUNSEN_TEST_INTEGER_ARRAY_FIELD);
+    integerArrayField1.setValue(new IntegerType(6666));
 
-  //   // add multiple nested extensions
-  //   final Extension nestedExtension1 = patient.addExtension();
-  //   nestedExtension1.setUrl(BUNSEN_TEST_NESTED_EXT_FIELD);
-  //   nestedExtension1.setValue(null);
+    Extension integerArrayField2 = patient.addExtension();
+    integerArrayField2.setUrl(BUNSEN_TEST_INTEGER_ARRAY_FIELD);
+    integerArrayField2.setValue(new IntegerType(9999));
 
-  //   final Extension nestedExtension2 = patient.addExtension();
-  //   nestedExtension2.setUrl(BUNSEN_TEST_NESTED_EXT_FIELD);
-  //   nestedExtension2.setValue(null);
+    // add multiple nested extensions
+    final Extension nestedExtension1 = patient.addExtension();
+    nestedExtension1.setUrl(BUNSEN_TEST_NESTED_EXT_FIELD);
+    nestedExtension1.setValue(null);
 
-  //   // add text as sub-extension to nestedExtension
-  //   final Extension textExt1 = nestedExtension1.addExtension();
-  //   textExt1.setUrl("text");
-  //   textExt1.setValue(new StringType("Text1 Sub-extension of nestedExtension1 field"));
+    final Extension nestedExtension2 = patient.addExtension();
+    nestedExtension2.setUrl(BUNSEN_TEST_NESTED_EXT_FIELD);
+    nestedExtension2.setValue(null);
 
-  //   final Extension textExt2 = nestedExtension1.addExtension();
-  //   textExt2.setUrl("text");
-  //   textExt2.setValue(new StringType("Text2 Sub-extension of nestedExtension1 field"));
+    // add text as sub-extension to nestedExtension
+    final Extension textExt1 = nestedExtension1.addExtension();
+    textExt1.setUrl("text");
+    textExt1.setValue(new StringType("Text1 Sub-extension of nestedExtension1 field"));
 
-  //   final Extension textExt3 = nestedExtension2.addExtension();
-  //   textExt3.setUrl("text");
-  //   textExt3.setValue(new StringType("Text3 Sub-extension of nestedExtension2 field"));
+    final Extension textExt2 = nestedExtension1.addExtension();
+    textExt2.setUrl("text");
+    textExt2.setValue(new StringType("Text2 Sub-extension of nestedExtension1 field"));
 
-  //   // add multiple codeableConcept extensions to nestedExtension
-  //   final CodeableConcept codeableconcept1 = new CodeableConcept();
-  //   codeableconcept1.addCoding()
-  //       .setSystem("http://snomed.info/sct")
-  //       .setCode("CC1")
-  //       .setDisplay("CC1 - Codeable Concept Extension")
-  //       .setUserSelected(true);
+    final Extension textExt3 = nestedExtension2.addExtension();
+    textExt3.setUrl("text");
+    textExt3.setValue(new StringType("Text3 Sub-extension of nestedExtension2 field"));
 
-  //   final CodeableConcept codeableconcept2 = new CodeableConcept();
-  //   codeableconcept2.addCoding()
-  //       .setSystem("http://snomed.info/sct")
-  //       .setCode("CC2")
-  //       .setDisplay("CC2 - Codeable Concept Extension")
-  //       .setUserSelected(true);
+    // add multiple codeableConcept extensions to nestedExtension
+    final CodeableConcept codeableconcept1 = new CodeableConcept();
+    codeableconcept1
+        .addCoding()
+        .setSystem("http://snomed.info/sct")
+        .setCode("CC1")
+        .setDisplay("CC1 - Codeable Concept Extension")
+        .setUserSelected(true);
 
-  //   final CodeableConcept codeableconcept3 = new CodeableConcept();
-  //   codeableconcept3.addCoding()
-  //       .setSystem("http://snomed.info/sct")
-  //       .setCode("CC3")
-  //       .setDisplay("CC3 - Codeable Concept Extension")
-  //       .setUserSelected(true);
+    final CodeableConcept codeableconcept2 = new CodeableConcept();
+    codeableconcept2
+        .addCoding()
+        .setSystem("http://snomed.info/sct")
+        .setCode("CC2")
+        .setDisplay("CC2 - Codeable Concept Extension")
+        .setUserSelected(true);
 
-  //   final Extension codeableConceptExt1 = nestedExtension1.addExtension();
-  //   codeableConceptExt1.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
-  //   codeableConceptExt1.setValue(codeableconcept1);
+    final CodeableConcept codeableconcept3 = new CodeableConcept();
+    codeableconcept3
+        .addCoding()
+        .setSystem("http://snomed.info/sct")
+        .setCode("CC3")
+        .setDisplay("CC3 - Codeable Concept Extension")
+        .setUserSelected(true);
 
-  //   final Extension codeableConceptExt2 = nestedExtension1.addExtension();
-  //   codeableConceptExt2.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
-  //   codeableConceptExt2.setValue(codeableconcept2);
+    final Extension codeableConceptExt1 = nestedExtension1.addExtension();
+    codeableConceptExt1.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
+    codeableConceptExt1.setValue(codeableconcept1);
 
-  //   final Extension codeableConceptExt3 = nestedExtension2.addExtension();
-  //   codeableConceptExt3.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
-  //   codeableConceptExt3.setValue(codeableconcept3);
+    final Extension codeableConceptExt2 = nestedExtension1.addExtension();
+    codeableConceptExt2.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
+    codeableConceptExt2.setValue(codeableconcept2);
 
-  //   // add multiple ModifierExtension fields
-  //   Extension stringModifierExtension = patient.addModifierExtension();
-  //   stringModifierExtension.setUrl(BUNSEN_TEST_STRING_MODIFIER_EXT_FIELD);
-  //   stringModifierExtension.setValue(new StringType("test string modifier value"));
+    final Extension codeableConceptExt3 = nestedExtension2.addExtension();
+    codeableConceptExt3.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_EXT_FIELD);
+    codeableConceptExt3.setValue(codeableconcept3);
 
-  //   CodeableConcept concept1 = new CodeableConcept();
-  //   concept1.addCoding()
-  //       .setSystem("http://snomed.info/sct")
-  //       .setCode("C-1")
-  //       .setDisplay("C-1 Codeable Concept Modifier Extension")
-  //       .setUserSelected(true);
+    // add multiple ModifierExtension fields
+    Extension stringModifierExtension = patient.addModifierExtension();
+    stringModifierExtension.setUrl(BUNSEN_TEST_STRING_MODIFIER_EXT_FIELD);
+    stringModifierExtension.setValue(new StringType("test string modifier value"));
 
-  //   Extension codeableConceptField = patient.addModifierExtension();
-  //   codeableConceptField.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD);
-  //   codeableConceptField.setValue(concept1);
+    CodeableConcept concept1 = new CodeableConcept();
+    concept1
+        .addCoding()
+        .setSystem("http://snomed.info/sct")
+        .setCode("C-1")
+        .setDisplay("C-1 Codeable Concept Modifier Extension")
+        .setUserSelected(true);
 
-  //   CodeableConcept concept2 = new CodeableConcept();
-  //   concept2.addCoding()
-  //       .setSystem("http://snomed.info/sct")
-  //       .setCode("C-2")
-  //       .setDisplay("C-2 Codeable Concept Modifier Extension")
-  //       .setUserSelected(true);
+    Extension codeableConceptField = patient.addModifierExtension();
+    codeableConceptField.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD);
+    codeableConceptField.setValue(concept1);
 
-  //   Extension codeableConceptField2 = patient.addModifierExtension();
-  //   codeableConceptField2.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD);
-  //   codeableConceptField2.setValue(concept2);
+    CodeableConcept concept2 = new CodeableConcept();
+    concept2
+        .addCoding()
+        .setSystem("http://snomed.info/sct")
+        .setCode("C-2")
+        .setDisplay("C-2 Codeable Concept Modifier Extension")
+        .setUserSelected(true);
 
-  //   return patient;
-  // }
+    Extension codeableConceptField2 = patient.addModifierExtension();
+    codeableConceptField2.setUrl(BUNSEN_TEST_CODEABLE_CONCEPT_MODIFIER_EXT_FIELD);
+    codeableConceptField2.setValue(concept2);
+
+    return patient;
+  }
 }

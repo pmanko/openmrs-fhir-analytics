@@ -7,31 +7,31 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.hl7.fhir.instance.model.api.IBase;
+import org.jspecify.annotations.Nullable;
 
 public abstract class HapiChoiceConverter<T> extends HapiConverter<T> {
 
   protected abstract Object getChild(Object composite, int index);
 
-  protected abstract Object createComposite(Object[] children);
+  protected abstract Object createComposite(@Nullable Object[] children);
 
-  private final Map<String,HapiConverter<T>> choiceTypes;
+  private final Map<String, HapiConverter<T>> choiceTypes;
 
   private final T structType;
 
-  private final FhirConversionSupport fhirSupport;
+  protected final FhirConversionSupport fhirSupport;
 
   private final class ChoiceFieldSetter implements HapiFieldSetter {
 
-    private final Map<String,HapiFieldSetter> choiceFieldSetters;
+    private final Map<String, HapiFieldSetter> choiceFieldSetters;
 
     ChoiceFieldSetter(Map<String, HapiFieldSetter> choiceFieldSetters) {
       this.choiceFieldSetters = choiceFieldSetters;
     }
 
     @Override
-    public void setField(IBase parentObject,
-        BaseRuntimeChildDefinition fieldToSet,
-        Object composite) {
+    public void setField(
+        IBase parentObject, BaseRuntimeChildDefinition fieldToSet, Object composite) {
 
       Iterator<Entry<String, HapiFieldSetter>> setterIterator =
           choiceFieldSetters.entrySet().iterator();
@@ -54,22 +54,20 @@ public abstract class HapiChoiceConverter<T> extends HapiConverter<T> {
     }
   }
 
-  protected HapiChoiceConverter(Map<String, HapiConverter<T>> choiceTypes,
-      T structType,
-      FhirConversionSupport fhirSupport) {
+  protected HapiChoiceConverter(
+      Map<String, HapiConverter<T>> choiceTypes, T structType, FhirConversionSupport fhirSupport) {
 
     this.choiceTypes = choiceTypes;
     this.structType = structType;
     this.fhirSupport = fhirSupport;
   }
 
-
   @Override
   public Object fromHapi(Object input) {
 
     String fhirType = fhirSupport.fhirType((IBase) input);
 
-    Object[] values = new Object[choiceTypes.size()];
+    @Nullable Object[] values = new Object[choiceTypes.size()];
 
     Iterator<Map.Entry<String, HapiConverter<T>>> schemaIterator =
         choiceTypes.entrySet().iterator();
@@ -86,7 +84,6 @@ public abstract class HapiChoiceConverter<T> extends HapiConverter<T> {
 
         values[valueIndex] = converter.fromHapi(input);
       }
-
     }
 
     return createComposite(values);
@@ -97,16 +94,16 @@ public abstract class HapiChoiceConverter<T> extends HapiConverter<T> {
 
     Map<String, HapiFieldSetter> fieldSetters = new LinkedHashMap<>();
 
-    for (Map.Entry<String, HapiConverter<T>> choiceEntry: choiceTypes.entrySet()) {
+    for (Map.Entry<String, HapiConverter<T>> choiceEntry : choiceTypes.entrySet()) {
 
       // The list is small and only consumed when generating the conversion functions,
       // so a nested loop isn't a performance issue.
-      for (BaseRuntimeElementDefinition elementDefinition: elementDefinitions) {
+      for (BaseRuntimeElementDefinition elementDefinition : elementDefinitions) {
 
         if (elementDefinition.getName().equals(choiceEntry.getKey())) {
 
-          fieldSetters.put(choiceEntry.getKey(),
-              choiceEntry.getValue().toHapiConverter(elementDefinition));
+          fieldSetters.put(
+              choiceEntry.getKey(), choiceEntry.getValue().toHapiConverter(elementDefinition));
         }
       }
     }
@@ -117,5 +114,10 @@ public abstract class HapiChoiceConverter<T> extends HapiConverter<T> {
   @Override
   public T getDataType() {
     return structType;
+  }
+
+  /** Returns the choice type fields that the current converter is responsible for conversion */
+  public Map<String, HapiConverter<T>> getChoiceTypes() {
+    return choiceTypes;
   }
 }

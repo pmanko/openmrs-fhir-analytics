@@ -18,19 +18,43 @@
 # of these options.
 # This config is meant to be used by `compose-controller-spark-sql.yaml`.
 fhirdata:
+  fhirFetchMode: "FHIR_SEARCH"
   # 172.17.0.1 is an example docker network interface ip address;
   # `hapi-server` is another docker example where a container with that name is
   # running on the same docker network.
-  # fhirServerUrl: "http://172.17.0.1:8091/fhir"
+  fhirServerUrl: "http://172.17.0.1:8091/fhir"
   # fhirServerUrl: "http://hapi-server:8080/fhir"
-  dbConfig: "config/hapi-postgres-config_local.json"
+  # dbConfig: "config/hapi-postgres-config_local.json"
   dwhRootPrefix: "/dwh/controller_DWH"
+  generateParquetFiles: true
   incrementalSchedule: "0 0 * * * *"
   purgeSchedule: "0 30 * * * *"
   numOfDwhSnapshotsToRetain: 2
-  resourceList: "Patient,Encounter,Observation"
-  maxWorkers: 1
+  # There is no Questionnaire in our test FHIR server, but it is added to
+  # prevent regression of https://github.com/google/fhir-data-pipes/issues/785.
+  # TODO: add resource table creation to e2e tests.
+  resourceList: "Patient,Encounter,Observation,Questionnaire,Condition,Practitioner,Location,Organization,DiagnosticReport,Immunization,MedicationRequest,PractitionerRole,Procedure"
   numThreads: -1
+  autoGenerateFlinkConfiguration: true
   createHiveResourceTables: true
   thriftserverHiveConfig: "config/thriftserver-hive-config_local.json"
-  hiveJdbcDriver: "org.apache.hive.jdbc.HiveDriver"
+  hiveResourceViewsDir: "config/views"
+  # structureDefinitionsPath: "config/profile-definitions"
+  structureDefinitionsPath: "classpath:/r4-us-core-definitions"
+  fhirVersion: "R4"
+  rowGroupSizeForParquetFiles: 33554432   # 32mb
+  viewDefinitionsDir: "config/views"
+  createParquetViews: true
+  sinkDbConfigPath: "config/hapi-postgres-config_local_views.json"
+  #sinkFhirServerUrl: "http://sink-server:8080/fhir"
+  #sinkUserName: "hapi"
+  #sinkPassword: "hapi123"
+  recursiveDepth: 1
+
+# Enable spring boot actuator end points, use "*" to expose all endpoints, or a comma-separated
+# list to expose selected ones
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,pipeline-metrics

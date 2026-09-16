@@ -15,10 +15,33 @@
 #
 
 fhirdata:
+  # The mode that will be used by the application to fetch FHIR resources from the source FHIR
+  # server. Currently supported modes : FHIR_SEARCH, HAPI_JDBC, BULK_EXPORT and OPENMRS_JDBC
+  fhirFetchMode: "FHIR_SEARCH"
+
   # The base URL of the source FHIR server. If `dbConfig` is not set, resources
   # are fetched from this URL through the FHIR Search API.
   # Equivalent to the pipeline `fhirServerUrl` parameter.
   fhirServerUrl: "http://172.17.0.1:8091/fhir"
+  #fhirServerUrl: "http://localhost:8099/openmrs/ws/fhir2/R4"
+  #fhirServerUrl: "http://localhost:9002/fhir"
+
+  # The following user-name/password should be set if the FHIR server supports
+  # Basic Auth.
+  #fhirServerUserName: "admin"
+  #fhirServerPassword: "Admin123"
+  # The following client credentials should be set if the FHIR server accepts
+  # OAuth access tokens. Note the client credentials, e.g., the secret, are
+  # sensitive, and it is probably a better practice to set these through
+  # command-line arguments.
+  #fhirServerOAuthTokenEndpoint: "http://localhost:9080/auth/realms/test/protocol/openid-connect/token"
+  #fhirServerOAuthClientId: "THE_CLIENT_ID"
+  #fhirServerOAuthClientSecret: "THE_CLIENT_SECRET"
+
+  # Whether to check the /Patient endpoint when validating FHIR server connection.
+  # This is by default is enabled because it tests the auth config but can be disabled
+  # if the FHIR server does not support /Patient.
+  #checkPatientEndpoint: true
 
   # The path to the file containing JDBC settings for connecting to a HAPI FHIR
   # server database. If this is set, resources are fetched directly from the
@@ -32,16 +55,36 @@ fhirdata:
   # for example, "config/controller_DWH_ORIG" will create something like
   # ./config/controller_DWH_ORIG_TIMESTAMP_2023-01-27T23-55-39.295824Z
   # Similar to the pipeline `outputParquetPath` parameter.
-  # 
-  # For GCS buckets, dwhRootPrefix must be of the format
-  # "gs://<bucket>/<baseDirPath>/<prefix>". <baseDirPath> is optional
-  # for GCS buckets and may contain 0 or more directory names.
+  #
+  # For GCS and S3 buckets, dwhRootPrefix must be of the format
+  # "scheme://<bucket>/<baseDirPath>/<prefix>" where `scheme` is either `gs`
+  # or `s3`. <baseDirPath> is optional for cloud buckets and may contain 0 or
+  # more directory names.
   #
   # For *nix file systems, dwhRootPrefix must be of the format
   # "/<baseDirPath>/<prefix>" and can be absolute or relative. <baseDirPath>
   # is required for *nix, and must contain 1 or more directory names.
-  # dwhRootPrefix: "gs://fhir-test-analytics/config/controller_DWH_ORIG"
-  dwhRootPrefix: "config/controller_DWH_ORIG"
+  # Sample 1 : "/fhir-test-analytics/dwh/controller_DWH_ORIG"
+  # Sample 2 : "dwh/controller_DWH_ORIG"
+  #
+  # For Windows file systems, dwhRootPrefix must be of the format '<baseDirPath>\<prefix>' and can
+  # be absolute or relative. In case of absolute the <baseDirPath> is non-mandatory and in case of
+  # relative it should contain mandatory <baseDirPath> with 1 or more directory names. Use
+  # single-quotes or no-quotes for the value so that backslash character is treated as a regular
+  # character and not as an escaped character
+  # Sample 1 : 'C:\controller_DWH_ORIG'
+  # Sample 1 : 'C:\fhir-test-analytics\dwh\controller_DWH_ORIG'
+  # Sample 2 : dwh\controller_DWH_ORIG
+  #
+  # Note for developers: You can make a symlink of `[repo_root]/docker/dwh` here
+  # such that the Thrift Server of `compose-controller-spark-sql-single.yaml`
+  # config can easily be used in dev env. too. You may need to set the ACL of
+  # that directory too, such that files created by the pipelines are readable by
+  # the Thrift Server, e.g., `setfacl -d -m o::rx dwh/`.
+  dwhRootPrefix: "dwh/controller_DEV_DWH"
+  # Whether to  generate Parquet Files or not. In case of syncing from a FHIR server to another,
+  # if Parquet files are not needed, their generation can be switched off by this flag.
+  generateParquetFiles: true
 
   # The schedule for automatic incremental pipeline runs.
   # Uses the Spring CronExpression format, i.e.,
@@ -63,15 +106,29 @@ fhirdata:
 
   # The comma-separated list of FHIR resources to fetch/monitor.
   # Equivalent to pipeline `resourceList` parameter.
-  resourceList: "Patient,Encounter,Observation"
+  # Note there is no Questionnaire in our test FHIR server, but it is okay; see
+  # https://github.com/google/fhir-data-pipes/issues/785.
+  resourceList: "Patient,Encounter,Observation,Questionnaire,Condition,Practitioner,Location,Organization"
 
-  # The maximum number of Flink workers to use. Each worker may have 
-  # `numThreads` parallel threads.
-  maxWorkers: 1
+  # The parallelism to be used for a pipeline job. In case of FlinkRunner, if the value is set to
+  # -1, then in the local execution mode the number of threads the job uses will be equal to the
+  # number of cores in the machine, whereas in the remote mode (cluster) only 1 thread is used.
+  # If set to a positive value, then in both the modes the pipeline uses these many threads combined
+  # across all the workers.
+  # numThreads: -1
+  # For test purposes in the dev env. we set number of threads to one.
+  numThreads: 1
 
-  # If a positive number, the number of threads to use per worker.
-  # Otherwise, the number of threads is equal to the number of cores.
-  numThreads: -1
+  # In case of Flink local execution mode (which is the default currently), generate Flink
+  # configuration file `flink-conf.yaml` automatically based on the parallelism set via the
+  # parameter `numThreads` and the `cores` available in the machine. The generated file will have
+  # the parameters set with optimised values necessary to run the pipelines without fail. Disable
+  # this parameter to manually pass the configuration file by pointing the environment variable
+  # FLINK_CONF_DIR to the directory where the flink-conf.yaml is placed.
+  #
+  # Note for Flink non-local execution mode, this parameter has to be disabled and the configuration
+  # file has to be passed manually which has more fine-grained control parameters
+  autoGenerateFlinkConfiguration: true
 
   # Whether resource tables should be automatically created on a
   # Hive/Spark server. Primarily meant for single-machine deployment.
@@ -81,5 +138,71 @@ fhirdata:
   # Required if createHiveResourceTables is `true`.
   thriftserverHiveConfig: "config/thriftserver-hive-config.json"
 
-  # The JDBC driver to use when creating tables.
-  hiveJdbcDriver: "org.apache.hive.jdbc.HiveDriver"
+  # Path to a directory containing view definitions for each resource type.
+  # If not set or set to empty string, automatic view creation is disabled.
+  # Otherwise, for each resource type, its view definition SQL queries are read
+  # and applied from corresponding files, i.e., any file that starts with the
+  # resource name and ends in `.sql`, e.g., `DiagnosticReport_flat.sql`.
+  # Only applies when createHiveResourceTables is `true`.
+  #
+  # Note for developers: If you symlink `[repo_root]/docker/config/views` here
+  # you can use those predefined views in your dev. env. too.
+  hiveResourceViewsDir: "config/views"
+
+  # Directory path containing the structure definition files for any custom profiles that needs to be
+  # supported. If this starts with `classpath:` then the a classpath resource is
+  # assumed and the path should always start with a `/`.
+  # Do not configure anything if custom profiles are not needed.
+  #structureDefinitionsPath: "config/r4-us-core-definitions"
+  structureDefinitionsPath: "classpath:/r4-us-core-definitions"
+
+  # The fhir version to be used for the FHIR Context APIs. This is an enum value and the possible
+  # values should be one from the list mentioned in the below link
+  # https://github.com/hapifhir/hapi-fhir/blob/a5eddc3837c72e5a6df4fd65150c8e10ec966f4e/hapi-fhir-base/src/main/java/ca/uhn/fhir/context/FhirVersionEnum.java#L37
+  # Currently, only enums R4 and DSTU3 are supported by the application.
+  # TODO: https://github.com/google/fhir-data-pipes/issues/958
+  fhirVersion: "R4"
+
+  # This is the size of the Parquet Row Group (a logical horizontal partitioning into rows) that
+  # will be used for creating row groups in parquet file by pipelines. A large value means more data
+  # for one column can be fit into one big column chunk which will speed up the reading of column
+  # data. On the downside, more in-memory will be needed to hold the data before writing to files.
+  rowGroupSizeForParquetFiles: 33554432   # 32mb
+
+  # The location from which ViewDefinition resources are read and applied to the
+  # corresponding input FHIR resources. Any file in this directory that ends
+  # `.json` is assumed to be a single ViewDefinition. To output these views to a
+  # relational database, the next sinkDbConfigPath should also be set.
+  viewDefinitionsDir: "config/views"
+
+  # Whether to generate Parquet materialized views or not.
+  createParquetViews: true
+
+  # The configuration file for the sink database. If `viewDefinitionsDir` is set
+  # then the generated views are materialized and written to this DB. If not,
+  # then the raw FHIR JSON resources are written to this DB. Note enabling this
+  # feature can have a noticeable impact on pipelines performance. The default
+  # empty string disables this feature.
+  #sinkDbConfigPath: "config/hapi-postgres-config_local_views.json"
+
+  # The base URL of the sink FHIR server. If not set, the feature for sending
+  # resources to a sink FHIR server is disabled.
+  #sinkFhirServerUrl: "http://172.17.0.1:8098/fhir"
+  # The following user-name/password should be set if the sink FHIR server supports Basic Auth.
+  #sinkUserName: "hapi"
+  #sinkPassword: "hapi123"
+
+  # The maximum depth for traversing StructureDefinitions in Parquet schema
+  # generation (if it is non-positive, the default 1 will be used). Note in most
+  # cases, the default 1 is sufficient and increasing that can result in
+  # significantly larger schema and more complexity. For details see:
+  # https://github.com/FHIR/sql-on-fhir/blob/master/sql-on-fhir.md#recursive-structures
+  recursiveDepth: 1
+
+# Enable spring boot actuator end points, use "*" to expose all endpoints, or a comma-separated
+# list to expose selected ones
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,pipeline-metrics

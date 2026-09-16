@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2020-2023 Google LLC
+    Copyright 2020-2026 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.openmrs.analytics</groupId>
+    <groupId>com.google.fhir.analytics</groupId>
     <artifactId>pipelines</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.7-SNAPSHOT</version>
   </parent>
 
   <artifactId>batch</artifactId>
@@ -34,15 +34,22 @@
   <packaging>jar</packaging>
 
   <properties>
-    <hamcrest.version>2.2</hamcrest.version>
-    <jackson.version>2.15.1</jackson.version>
+    <hamcrest.version>3.0</hamcrest.version>
+    <jackson.version>2.22.0</jackson.version>
     <pubsub.version>v1-rev20220904-2.0.0</pubsub.version>
-    <spark.version>2.4.8</spark.version>
-    <maven-surefire-plugin.version>3.1.0</maven-surefire-plugin.version>
+    <!-- Spark here is only the Beam *Spark runner* (the spark-runner profile below),
+      an alternative execution engine to the default Flink runner. It is unrelated to
+      the Spark Thrift Server used by the controller for SQL. This must match what
+      Beam's Spark runner targets: Beam 2.74.0 ships `beam-runners-spark-4`, built
+      against Spark 4.0.2 on Scala 2.13, so the spark-* artifacts below use the _2.13
+      suffix. -->
+    <spark.version>4.0.2</spark.version>
+    <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
     <nemo.version>0.1</nemo.version>
-    <flink.artifact.name>beam-runners-flink-1.14</flink.artifact.name>
-    <mysql.driver.version>8.0.16</mysql.driver.version>
-    <postgresql.version>42.6.0</postgresql.version>
+    <!-- Pinned to 1.17. Anything higher is a breaking change.-->
+    <flink.artifact.name>beam-runners-flink-1.17</flink.artifact.name>
+    <mysql.driver.version>9.7.0</mysql.driver.version>
+    <postgresql.version>42.7.13</postgresql.version>
 
   </properties>
 
@@ -67,14 +74,14 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>1.11.1</version>
+      <version>1.12.1</version>
     </dependency>
 
     <!--JDBC specific dependencies-->
 
     <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
       <version>${mysql.driver.version}</version>
       <!-- We need to exclude this to avoid the clash with the same dependency under the artifact
       org.apache.beam:beam-sdks-java-io-google-cloud-platform so that it does not end up in
@@ -99,10 +106,19 @@
       <version>${postgresql.version}</version>
     </dependency>
 
-    <!-- Adds a dependency on the Beam Google Cloud Platform IO module. -->
+    <!-- Adds a dependency on the Beam Google Cloud Platform IO module. Without
+      this we get some NoClassDefFoundError related to Beam's CoderRegistry. We
+      can probably use a smaller dep but we depend on this in common anyways.-->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
+    <!-- Same as above for AWS -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-amazon-web-services2</artifactId>
       <version>${beam.version}</version>
     </dependency>
 
@@ -177,7 +193,7 @@
             <manifest>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
-              <mainClass>org.openmrs.analytics.FhirEtl</mainClass>
+              <mainClass>com.google.fhir.analytics.FhirEtl</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -198,7 +214,7 @@
                  Note with the following `fileName` we produce a "bundled"
                  uber-jar while keep the original normal jar. -->
               <createDependencyReducedPom>false</createDependencyReducedPom>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
+              <finalName>${project.artifactId}-bundled</finalName>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
@@ -264,7 +280,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-spark</artifactId>
+          <artifactId>beam-runners-spark-4</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -276,7 +292,7 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.11</artifactId>
+          <artifactId>spark-streaming_2.13</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -288,7 +304,7 @@
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>jackson-module-scala_2.11</artifactId>
+          <artifactId>jackson-module-scala_2.13</artifactId>
           <version>${jackson.version}</version>
           <scope>runtime</scope>
         </dependency>
